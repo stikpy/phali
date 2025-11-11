@@ -1,0 +1,217 @@
+"use client"
+
+import { useEffect, useRef, useState } from "react"
+import { triggerWizz } from "@/lib/wizz"
+import { createClient } from "@/utils/client"
+import { sendChatMessage } from "@/app/actions/chat"
+import { logEvent } from "@/app/actions/log"
+
+type ChatMsg = { id: string; from: string; text: string; at: number }
+
+export default function MSNChat() {
+  const [open, setOpen] = useState(false)
+  const [messages, setMessages] = useState<ChatMsg[]>([])
+  const [input, setInput] = useState("")
+  const [nick, setNick] = useState("")
+  const [editingNick, setEditingNick] = useState(false)
+  const containerRef = useRef<HTMLDivElement>(null)
+  const subscribedRef = useRef(false)
+  const seenIdsRef = useRef<Set<string>>(new Set())
+
+  useEffect(() => {
+    if (!open) return
+    containerRef.current?.scrollTo({ top: containerRef.current.scrollHeight })
+  }, [open, messages])
+
+  useEffect(() => {
+    // ouvrir par défaut uniquement sur desktop (>= 1024px)
+    try {
+      if (window.innerWidth >= 1024) setOpen(true)
+    } catch {}
+
+    // hydratation du pseudo: lecture synchrone des sources, puis set unique
+    const readCookie = (name: string) =>
+      document.cookie
+        .split("; ")
+        .find((row) => row.startsWith(name + "="))
+        ?.split("=")[1]
+
+    let initial = ""
+    try {
+      initial = sessionStorage.getItem("y2k-chat-nick") || ""
+    } catch {}
+    if (!initial) {
+      const c = readCookie("y2k_chat_nick")
+      if (c) initial = decodeURIComponent(c)
+    }
+    if (!initial) {
+      try {
+        initial = localStorage.getItem("y2k-chat-nick") || ""
+      } catch {}
+    }
+    if (!initial) {
+      initial = `Invité-${Math.random().toString(36).slice(2, 6)}`
+    }
+    setNick(initial)
+    try {
+      sessionStorage.setItem("y2k-chat-nick", initial)
+      document.cookie = `y2k_chat_nick=${encodeURIComponent(initial)}; path=/`
+      localStorage.setItem("y2k-chat-nick", initial)
+    } catch {}
+
+    // load history + subscribe realtime
+    if (!subscribedRef.current) {
+      subscribedRef.current = true
+      const supabase = createClient()
+      const load = async () => {
+        const { data } = await supabase
+          .from("chat_messages")
+          .select("*")
+          .order("created_at", { ascending: true })
+          .limit(50)
+        if (data) {
+          const mapped = data.map((d: any) => ({
+            id: d.id as string,
+            from: d.author as string,
+            text: d.message as string,
+            at: new Date(d.created_at as string).getTime(),
+          }))
+          setMessages(mapped)
+          mapped.forEach((m) => seenIdsRef.current.add(m.id))
+        }
+      }
+      load()
+      const channel = supabase
+        .channel("chat-messages")
+        .on(
+          "postgres_changes",
+          { event: "INSERT", schema: "public", table: "chat_messages" },
+          (payload) => {
+            const id = (payload.new as any).id as string
+            if (seenIdsRef.current.has(id)) return
+            seenIdsRef.current.add(id)
+            setMessages((prev) => [
+              ...prev,
+              {
+                id,
+                from: (payload.new as any).author as string,
+                text: (payload.new as any).message as string,
+                at: new Date((payload.new as any).created_at as string).getTime(),
+              },
+            ])
+          },
+        )
+        .subscribe()
+      return () => {
+        supabase.removeChannel(channel)
+        subscribedRef.current = false
+      }
+    }
+  }, [])
+
+  const send = () => {
+    if (!input.trim()) return
+    const author = nick.trim() || "Anonyme"
+    // persist nick into cookie and localStorage
+    try {
+      // Cookie de session (expire à la fermeture du navigateur) + sessionStorage
+      document.cookie = `y2k_chat_nick=${encodeURIComponent(author)}; path=/`
+      sessionStorage.setItem("y2k-chat-nick", author)
+      localStorage.setItem("y2k-chat-nick", author)
+    } catch {}
+    // optimistic with deterministic id
+    const id = crypto.randomUUID()
+    const text = input.trim()
+    setInput("")
+    seenIdsRef.current.add(id)
+    setMessages((prev) => [...prev, { id, from: author, text, at: Date.now() }])
+    // persist
+    void sendChatMessage({ id, author, message: text }).catch(async (e: any) => {
+      console.error("[chat] send failed:", e?.message || e)
+      await logEvent("error", "chat send failed", { error: e?.message || String(e) })
+    })
+  }
+
+  const wizz = () => triggerWizz()
+
+  return (
+    <div className="fixed bottom-6 left-6 z-50">
+      {!open && (
+        <button className="skylog-button bg-secondary text-secondary-foreground" onClick={() => setOpen(true)}>
+          Ouvrir MSN
+        </button>
+      )}
+      {open && (
+        <div className="skylog-widget bg-card border border-white/15 y2k-neon-border w-80">
+          <div className="skylog-widget-header">
+            <span>[ MSN CHAT ]</span>
+            <div className="flex items-center gap-2">
+              <button className="skylog-button bg-accent text-foreground" onClick={wizz}>
+                Wizz!
+              </button>
+              <button className="skylog-button bg-primary" onClick={() => setOpen(false)}>
+                ×
+              </button>
+            </div>
+          </div>
+          <div className="px-3 pt-3 pb-0">
+            {!editingNick ? (
+              <div className="flex items-center justify-between">
+                <div className="text-[11px] font-mono text-foreground/70">
+                  Pseudo: <span className="font-bold">{nick || "Anonyme"}</span>
+                </div>
+                <button className="skylog-button bg-secondary text-secondary-foreground text-[10px]" onClick={() => setEditingNick(true)}>
+                  Changer
+                </button>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2">
+                <input
+                  value={nick}
+                  onChange={(e) => setNick(e.target.value)}
+                  className="flex-1 px-2 py-1 border border-white/20 bg-background/70 text-foreground font-mono text-xs"
+                  placeholder="Ton pseudo"
+                />
+                <button
+                  className="skylog-button bg-primary text-[10px]"
+                  onClick={() => {
+                    try {
+                      localStorage.setItem("y2k-chat-nick", nick.trim() || "Anonyme")
+                    } catch {}
+                    setEditingNick(false)
+                  }}
+                >
+                  OK
+                </button>
+              </div>
+            )}
+          </div>
+          <div ref={containerRef} className="p-3 h-56 overflow-auto bg-background/60">
+            {messages.map((m) => (
+              <div key={m.id} className="mb-2">
+                <div className="text-xs font-bold">{m.from}</div>
+                <div className="font-mono text-sm">{m.text}</div>
+                <div className="text-[10px] font-mono text-foreground/60">
+                  {new Date(m.at).toLocaleTimeString()}
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="p-3 flex gap-2">
+            <input
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              className="flex-1 px-2 py-2 border border-white/20 bg-background/70 text-foreground font-mono text-sm focus:outline-none focus:ring-2 focus:ring-[var(--neon-2)]"
+              placeholder="Tape ton message..."
+              onKeyDown={(e) => e.key === "Enter" && send()}
+            />
+            <button className="skylog-button bg-primary" onClick={send}>
+              Envoyer
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+

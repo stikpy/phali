@@ -1,0 +1,529 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  /* Palette Skylog/Voilà: couleurs éclatantes et flashy */
+  --background: #0b0b2d;
+  --foreground: #f5f3ff;
+  --card: #14144d;
+  --card-foreground: #f5f3ff;
+  --popover: #1b1b5a;
+  --popover-foreground: #f5f3ff;
+  --primary: #ff6ee8;
+  --primary-foreground: #2b003b;
+  --secondary: #5cf6ff;
+  --secondary-foreground: #021320;
+  --muted: #393972;
+  --muted-foreground: #c4c6ff;
+  --accent: #fefa77;
+  --accent-foreground: #2f2900;
+  --destructive: #ff4f7a;
+  --destructive-foreground: #2b0010;
+  --border: rgba(255, 255, 255, 0.2);
+  --input: rgba(9, 9, 35, 0.75);
+  --ring: #ff6ee8;
+  --neon-1: #ff89ff;
+  --neon-2: #68ffff;
+  --neon-3: #fefe8a;
+  --chart-1: oklch(0.646 0.222 41.116);
+  --chart-2: oklch(0.6 0.118 184.704);
+  --chart-3: oklch(0.398 0.07 227.392);
+  --chart-4: oklch(0.828 0.189 84.429);
+  --chart-5: oklch(0.769 0.188 70.08);
+  --radius: 0rem;
+  --sidebar: oklch(0.985 0 0);
+  --sidebar-foreground: oklch(0.145 0 0);
+  --sidebar-primary: oklch(0.205 0 0);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.97 0 0);
+  --sidebar-accent-foreground: oklch(0.205 0 0);
+  --sidebar-border: oklch(0.922 0 0);
+  --sidebar-ring: oklch(0.708 0 0);
+}
+
+.dark {
+  --background: #040416;
+  --foreground: #f0efff;
+  --card: #0c0c28;
+  --card-foreground: #f0efff;
+  --popover: #101036;
+  --popover-foreground: #f0efff;
+  --primary: #ff8dfa;
+  --primary-foreground: #1d0024;
+  --secondary: #46caff;
+  --secondary-foreground: #001422;
+  --muted: #2b2b54;
+  --muted-foreground: #b7b9ff;
+  --accent: #fff884;
+  --accent-foreground: #211c00;
+  --destructive: #ff6b91;
+  --destructive-foreground: #2b0010;
+  --border: rgba(255, 255, 255, 0.24);
+  --input: rgba(9, 9, 35, 0.85);
+  --ring: #ff8dfa;
+  --neon-1: #ffa2ff;
+  --neon-2: #73f9ff;
+  --neon-3: #fffda0;
+  --chart-1: oklch(0.488 0.243 264.376);
+  --chart-2: oklch(0.696 0.17 162.48);
+  --chart-3: oklch(0.769 0.188 70.08);
+  --chart-4: oklch(0.627 0.265 303.9);
+  --chart-5: oklch(0.645 0.246 16.439);
+  --sidebar: oklch(0.205 0 0);
+  --sidebar-foreground: oklch(0.985 0 0);
+  --sidebar-primary: oklch(0.488 0.243 264.376);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.269 0 0);
+  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --sidebar-border: oklch(0.269 0 0);
+  --sidebar-ring: oklch(0.439 0 0);
+}
+
+@theme inline {
+  /* optional: --font-sans, --font-serif, --font-mono if they are applied in the layout.tsx */
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-family: Arial, Verdana, sans-serif;
+    image-rendering: pixelated;
+    text-rendering: optimizeLegibility;
+  }
+}
+
+/* Skylog/Voilà animations - saccadées et flashy */
+@keyframes blink {
+  0%,
+  49%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0;
+  }
+}
+
+@keyframes wiggle {
+  0%,
+  100% {
+    transform: rotate(-1deg);
+  }
+  50% {
+    transform: rotate(1deg);
+  }
+}
+
+@keyframes bounce-flash {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.1);
+  }
+}
+
+@keyframes pulse-color {
+  0%,
+  100% {
+    color: var(--primary);
+  }
+  50% {
+    color: var(--secondary);
+  }
+}
+
+@keyframes glitch {
+  0% {
+    clip-path: inset(40% 0 61% 0);
+    transform: translate(-2px, -3px);
+  }
+  20% {
+    clip-path: inset(92% 0 1% 0);
+    transform: translate(2px, 3px);
+  }
+  40% {
+    clip-path: inset(43% 0 1% 0);
+    transform: translate(-2px, -1px);
+  }
+  60% {
+    clip-path: inset(25% 0 58% 0);
+    transform: translate(2px, 1px);
+  }
+  80% {
+    clip-path: inset(54% 0 7% 0);
+    transform: translate(-1px, 2px);
+  }
+  100% {
+    clip-path: inset(58% 0 43% 0);
+    transform: translate(1px, -2px);
+  }
+}
+
+.animate-blink {
+  animation: blink 1s infinite;
+}
+
+.animate-wiggle {
+  animation: wiggle 0.3s infinite;
+}
+
+.animate-bounce-flash {
+  animation: bounce-flash 0.5s infinite;
+}
+
+.animate-pulse-color {
+  animation: pulse-color 1s infinite;
+}
+
+.animate-glitch {
+  animation: glitch 0.3s infinite;
+}
+
+/* Skylog Widget styles - bordures épaisses 3D */
+.skylog-widget {
+  border: 3px solid rgba(255, 255, 255, 0.35);
+  box-shadow:
+    0 20px 40px rgba(8, 8, 30, 0.6),
+    inset 1px 1px 0px rgba(255, 255, 255, 0.15),
+    inset -1px -1px 0px rgba(8, 8, 30, 0.7);
+  position: relative;
+  overflow: hidden;
+}
+
+.skylog-widget.primary {
+  background: linear-gradient(135deg, rgba(255, 110, 232, 0.92) 0%, rgba(120, 55, 255, 0.85) 100%);
+  color: var(--primary-foreground);
+}
+
+.skylog-widget.secondary {
+  background: linear-gradient(135deg, rgba(92, 246, 255, 0.9) 0%, rgba(44, 156, 255, 0.85) 100%);
+  color: var(--secondary-foreground);
+}
+
+.skylog-widget.accent {
+  background: linear-gradient(135deg, rgba(254, 250, 119, 0.92) 0%, rgba(255, 190, 82, 0.85) 100%);
+  color: var(--accent-foreground);
+}
+
+.skylog-widget-header {
+  background: linear-gradient(90deg, rgba(255, 110, 232, 0.9) 0%, rgba(92, 246, 255, 0.9) 100%);
+  padding: 8px 10px;
+  font-weight: bold;
+  text-transform: uppercase;
+  font-size: 11px;
+  border-bottom: 2px solid rgba(255, 255, 255, 0.18);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: var(--foreground);
+}
+
+/* Skylog buttons - style rétro flashy */
+.skylog-button {
+  padding: 8px 16px;
+  border: 2px solid rgba(255, 255, 255, 0.28);
+  background: linear-gradient(135deg, var(--primary) 0%, rgba(120, 55, 255, 0.85) 100%);
+  color: var(--primary-foreground);
+  font-weight: bold;
+  text-transform: uppercase;
+  font-size: 11px;
+  cursor: pointer;
+  box-shadow:
+    0 12px 20px rgba(12, 12, 40, 0.45),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.18);
+  transition: all 0.18s ease;
+  font-family: Arial, Verdana;
+  text-shadow: 0 0 6px var(--neon-1);
+}
+
+.skylog-button:hover {
+  transform: translateY(-2px) scale(1.02);
+  box-shadow:
+    0 18px 30px rgba(12, 12, 40, 0.55),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.3);
+  filter: saturate(1.25);
+}
+
+.skylog-button:active {
+  transform: translateY(0) scale(0.99);
+  box-shadow: inset 0 0 12px rgba(0, 0, 0, 0.4);
+  filter: saturate(1.35) brightness(1.02);
+}
+
+/* Pattern background */
+body {
+  background:
+    radial-gradient(circle at top left, rgba(120, 55, 255, 0.25), transparent 45%),
+    radial-gradient(circle at 80% 20%, rgba(92, 246, 255, 0.22), transparent 50%),
+    linear-gradient(135deg, rgba(9, 9, 40, 0.9), rgba(9, 9, 30, 0.98));
+}
+
+/* Y2K: texte néon/brillant */
+.y2k-glow {
+  text-shadow:
+    0 0 6px var(--neon-1),
+    0 0 12px var(--neon-1),
+    0 0 18px var(--neon-2),
+    0 0 24px var(--neon-2);
+}
+
+/* Y2K: bordure néon animée */
+.y2k-neon-border::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border: 2px dashed rgba(255, 255, 255, 0.6);
+  pointer-events: none;
+  box-shadow:
+    0 0 10px var(--neon-1),
+    inset 0 0 10px var(--neon-2);
+  mix-blend-mode: screen;
+}
+
+/* Y2K: barre défilante façon marquee */
+@keyframes marquee-x {
+  0% {
+    transform: translateX(100%);
+  }
+  100% {
+    transform: translateX(-100%);
+  }
+}
+.y2k-marquee {
+  position: relative;
+  overflow: hidden;
+  white-space: nowrap;
+  border-top: 1px solid rgba(255, 255, 255, 0.25);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.25);
+  background: linear-gradient(90deg, rgba(255, 110, 232, 0.6) 0%, rgba(92, 246, 255, 0.6) 100%);
+  color: var(--foreground);
+  font-weight: 900;
+  text-transform: uppercase;
+}
+.y2k-marquee > span {
+  display: inline-block;
+  padding: 6px 12px;
+  animation: marquee-x 12s linear infinite;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.6);
+}
+
+/* Y2K: scanlines CRT */
+.y2k-scanlines {
+  position: relative;
+}
+.y2k-scanlines::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: linear-gradient(rgba(7, 7, 30, 0.14) 50%, transparent 50%);
+  background-size: 100% 2px;
+  mix-blend-mode: multiply;
+  pointer-events: none;
+}
+
+/* Y2K: scrollbar néon (webkit) */
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+*::-webkit-scrollbar-track {
+  background: #00000020;
+}
+*::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, var(--neon-1), var(--neon-2));
+  border: 2px solid #000;
+}
+
+/* Y2K: curseur custom simple */
+html, body {
+  cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width=\"24\" height=\"24\" viewBox=\"0 0 24 24\"><path fill=\"%23ff00ff\" d=\"M3 2l10 7l-4 1l3 10l-3-2l-3 5l-1-10l-4-1z\"/></svg>') 4 2, auto;
+}
+
+/* Utilitaires pour la galerie */
+.y2k-polaroid {
+  background: rgba(245, 243, 255, 0.9);
+  border: 2px solid rgba(10, 10, 40, 0.8);
+  box-shadow: 12px 14px 0 rgba(9, 9, 35, 0.45);
+}
+.y2k-polaroid img {
+  filter: contrast(1.05) saturate(1.1);
+}
+.y2k-hover-glow:hover {
+  box-shadow:
+    0 0 0 3px rgba(9, 9, 40, 0.8) inset,
+    0 0 14px var(--neon-1),
+    0 0 30px var(--neon-2);
+  transform: rotate(0deg) scale(1.04);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+/* Y2K: shake pour Wizz */
+@keyframes y2k-shake {
+  0% { transform: translate(0, 0) rotate(0); }
+  25% { transform: translate(3px, -3px) rotate(-0.5deg); }
+  50% { transform: translate(-3px, 3px) rotate(0.5deg); }
+  75% { transform: translate(2px, 1px) rotate(-0.5deg); }
+  100% { transform: translate(0, 0) rotate(0); }
+}
+.y2k-shake {
+  animation: y2k-shake 0.35s ease-in-out;
+}
+
+/* Y2K: starfield overlay */
+.y2k-starfield {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 5;
+}
+.y2k-starfield::before {
+  content: "";
+  position: absolute;
+  inset: -50%;
+  background-image:
+    radial-gradient(2px 2px at 20px 30px, rgba(255, 137, 255, 0.75), transparent),
+    radial-gradient(2px 2px at 80px 120px, rgba(92, 246, 255, 0.6), transparent),
+    radial-gradient(1px 1px at 160px 200px, rgba(254, 250, 119, 0.5), transparent),
+    radial-gradient(1px 1px at 260px 40px, rgba(255, 137, 255, 0.6), transparent);
+  background-size: 200px 200px;
+  animation: starfield-move 60s linear infinite;
+  opacity: 0.45;
+}
+@keyframes starfield-move {
+  0% { transform: translate(0, 0); }
+  100% { transform: translate(-200px, -200px); }
+}
+
+/* Y2K: CRT avancé (aberration chromatique légère) */
+.y2k-crt-pro {
+  position: relative;
+}
+.y2k-crt-pro::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  mix-blend-mode: screen;
+  background: linear-gradient(180deg, rgba(255,0,0,0.05), rgba(0,255,255,0.05));
+}
+.y2k-crt-pro .crt-layer {
+  position: relative;
+  filter: contrast(1.02) saturate(1.04);
+}
+.y2k-crt-pro .crt-layer::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  mix-blend-mode: screen;
+  background: repeating-linear-gradient(0deg, rgba(255,255,255,0.05), rgba(255,255,255,0.05) 1px, transparent 1px, transparent 2px);
+  pointer-events: none;
+}
+
+/* Y2K: décorations sparkles/under-construction (sans assets externes) */
+.decorations-active .y2k-sparkles {
+  position: fixed;
+  top: 10%;
+  left: 5%;
+  right: 5%;
+  bottom: 10%;
+  pointer-events: none;
+  z-index: 6;
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  opacity: 0.5;
+}
+.decorations-active .y2k-sparkles span {
+  display: inline-block;
+  animation: sparkle-float 6s ease-in-out infinite;
+  will-change: transform, opacity;
+  color: var(--neon-1);
+  text-shadow:
+    0 0 6px var(--neon-1),
+    0 0 12px var(--neon-2);
+}
+@keyframes sparkle-float {
+  0%, 100% { transform: translateY(0) rotate(0deg); opacity: 0.8; }
+  50% { transform: translateY(-20px) rotate(12deg); opacity: 1; }
+}
+.decorations-active .under-construction {
+  position: fixed;
+  bottom: 12px;
+  left: 12px;
+  z-index: 50;
+  background: linear-gradient(135deg, rgba(255, 110, 232, 0.9), rgba(92, 246, 255, 0.85));
+  color: var(--primary-foreground);
+  border: 2px solid rgba(255, 255, 255, 0.28);
+  padding: 8px 14px;
+  font-weight: 900;
+  box-shadow:
+    0 18px 30px rgba(9, 9, 35, 0.55),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.2);
+  text-transform: uppercase;
+}
+
+/* Y2K: badges pixel */
+.badge-pixel {
+  display: inline-block;
+  border: 2px solid rgba(255, 255, 255, 0.25);
+  padding: 6px 10px;
+  background: linear-gradient(135deg, rgba(120, 55, 255, 0.4), rgba(92, 246, 255, 0.35));
+  box-shadow:
+    6px 6px 0 rgba(9, 9, 35, 0.5),
+    inset 1px 1px 0 rgba(255, 255, 255, 0.25),
+    inset -1px -1px 0 rgba(9, 9, 40, 0.6);
+  font-weight: 800;
+  font-size: 10px;
+  text-transform: uppercase;
+}
+
+/* Y2K: LED style */
+.led {
+  font-family: "Courier New", monospace;
+  text-shadow:
+    0 0 4px var(--neon-2),
+    0 0 8px var(--neon-2);
+  letter-spacing: 0.08em;
+}
