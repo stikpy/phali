@@ -68,8 +68,32 @@ export default function AdminDashboard() {
       })
       setPhotos((data as PhotoObj[]) || [])
     })()
+    // Realtime photos
+    const photosCh = supabase
+      .channel("admin-photos")
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "storage", table: "objects", filter: "bucket_id=eq.photos" },
+        (p: any) => {
+          const name: string = p.new?.name || ""
+          if (!name.startsWith("event/")) return
+          const clean = name.slice("event/".length)
+          setPhotos((prev) => [{ name: clean }, ...prev.filter((x) => x.name !== clean)])
+        },
+      )
+      .on(
+        "postgres_changes",
+        { event: "DELETE", schema: "storage", table: "objects", filter: "bucket_id=eq.photos" },
+        (p: any) => {
+          const name: string = p.old?.name || ""
+          const clean = name.startsWith("event/") ? name.slice("event/".length) : name
+          setPhotos((prev) => prev.filter((x) => x.name !== clean))
+        },
+      )
+      .subscribe()
     return () => {
       supabase.removeChannel(ch)
+      supabase.removeChannel(photosCh)
     }
   }, [supabase])
 

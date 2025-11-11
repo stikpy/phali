@@ -69,6 +69,42 @@ export default function PhotoGallery({ photos, onUpload, limit, showUpload = tru
     fetchPhotos()
   }, [])
 
+  // Realtime: écoute INSERT/DELETE sur storage.objects (bucket photos)
+  useEffect(() => {
+    const ch = supabase
+      .channel("photos-gallery")
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "storage", table: "objects", filter: "bucket_id=eq.photos" },
+        async (payload: any) => {
+          const name: string = payload.new?.name || ""
+          if (!name.startsWith("event/")) return
+          const clean = name.slice("event/".length)
+          const full = supabase.storage.from("photos").getPublicUrl(name).data.publicUrl
+          const thumb = supabase.storage
+            .from("photos")
+            .getPublicUrl(name, { transform: { width: 640, quality: 70 } }).data.publicUrl
+          setRemotePhotos((prev) => {
+            if (prev.some((p) => p.name === clean)) return prev
+            return [{ name: clean, url: full, thumb }, ...prev]
+          })
+        },
+      )
+      .on(
+        "postgres_changes",
+        { event: "DELETE", schema: "storage", table: "objects", filter: "bucket_id=eq.photos" },
+        (payload: any) => {
+          const name: string = payload.old?.name || ""
+          const clean = name.startsWith("event/") ? name.slice("event/".length) : name
+          setRemotePhotos((prev) => prev.filter((p) => p.name !== clean))
+        },
+      )
+      .subscribe()
+    return () => {
+      supabase.removeChannel(ch)
+    }
+  }, [])
+
   const uploadFiles = async (files: FileList) => {
     const uploaded: RemotePhoto[] = []
     for (const file of Array.from(files)) {
@@ -158,43 +194,60 @@ export default function PhotoGallery({ photos, onUpload, limit, showUpload = tru
           </div>
         )}
 
-        {/* Photos Grid */}
+        {/* Photos Grid (Bento) */}
         {limitedPhotos.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {limitedPhotos.map((photo, index) => (
-              <div
-                key={`${photo}-${index}`}
-                className="skylog-widget border border-white/15 overflow-hidden transform hover:scale-105 transition-transform y2k-polaroid y2k-hover-glow"
-                style={{ transform: `rotate(${index % 3 ? 1 : -1}deg)` }}
-              >
-                <div className="skylog-widget-header bg-primary flex items-center justify-between">
-                  <span>[PHOTO {index + 1}]</span>
-                  <div className="flex items-center gap-2">
-                    <button
-                      className="skylog-button bg-secondary text-secondary-foreground text-[11px]"
-                      onClick={() => setSelectedPhoto(photo)}
-                    >
-                      Voir
-                    </button>
-                    <a
-                      href={photo}
-                      download
-                      className="skylog-button bg-accent text-foreground text-[11px]"
-                      aria-label="Télécharger la photo"
-                    >
-                      Télécharger
-                    </a>
+          <div className="grid grid-cols-2 md:grid-cols-6 gap-4 [grid-auto-rows:8rem] md:[grid-auto-rows:10rem]">
+            {limitedPhotos.map((photo, index) => {
+              const pattern = [
+                { col: 3, row: 2 },
+                { col: 2, row: 2 },
+                { col: 1, row: 1 },
+                { col: 2, row: 1 },
+                { col: 1, row: 2 },
+                { col: 3, row: 2 },
+              ]
+              const p = pattern[index % pattern.length]
+              const mobileCol = p.col >= 2 ? 2 : 1
+              const mobileRow = p.row >= 2 ? 2 : 1
+              const tileSpan = `col-span-${mobileCol} row-span-${mobileRow} md:col-span-${p.col} md:row-span-${p.row}`
+              return (
+                <div
+                  key={`${photo}-${index}`}
+                  className={`skylog-widget border border-white/15 overflow-hidden y2k-polaroid y2k-hover-glow ${tileSpan}`}
+                  style={{ transform: `rotate(${index % 3 ? 1 : -1}deg)` }}
+                >
+                  <div className="skylog-widget-header bg-primary flex items-center justify-between">
+                    <span>[PHOTO {index + 1}]</span>
+                    <div className="flex items-center gap-2">
+                      <button
+                        className="skylog-button bg-secondary text-secondary-foreground text-[11px]"
+                        onClick={() => setSelectedPhoto(photo)}
+                      >
+                        Voir
+                      </button>
+                      <a
+                        href={photo}
+                        download
+                        className="skylog-button bg-accent text-foreground text-[11px]"
+                        aria-label="Télécharger la photo"
+                      >
+                        Télécharger
+                      </a>
+                    </div>
+                  </div>
+                  <div
+                    className="relative w-full h-full min-h-[8rem] md:min-h-[10rem] bg-black/30 cursor-pointer"
+                    onClick={() => setSelectedPhoto(photo)}
+                  >
+                    <img
+                      src={allThumbs.get(photo) || photo || "/placeholder.svg"}
+                      alt={`Photo ${index + 1}`}
+                      className="w-full h-full object-cover"
+                    />
                   </div>
                 </div>
-                <div className="relative w-full aspect-square bg-black/30 cursor-pointer" onClick={() => setSelectedPhoto(photo)}>
-                  <img
-                    src={allThumbs.get(photo) || photo || "/placeholder.svg"}
-                    alt={`Photo ${index + 1}`}
-                    className="w-full h-full object-cover"
-                  />
-                </div>
-              </div>
-            ))}
+              )
+            })}
           </div>
         ) : (
           <div className="skylog-widget bg-card border border-white/15 y2k-neon-border">
