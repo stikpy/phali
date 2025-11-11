@@ -5,16 +5,24 @@ import type React from "react"
 import { useEffect, useRef, useState } from "react"
 import { createClient } from "@/utils/client"
 
+type RemotePhoto = {
+  name: string
+  url: string
+  thumb: string
+}
+
 interface PhotoGalleryProps {
   photos: string[]
   onUpload: (photos: string[]) => void
+  limit?: number
+  showUpload?: boolean
 }
 
-export default function PhotoGallery({ photos, onUpload }: PhotoGalleryProps) {
+export default function PhotoGallery({ photos, onUpload, limit, showUpload = true }: PhotoGalleryProps) {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [dragActive, setDragActive] = useState(false)
   const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null)
-  const [remotePhotos, setRemotePhotos] = useState<string[]>([])
+  const [remotePhotos, setRemotePhotos] = useState<RemotePhoto[]>([])
   const supabase = createClient()
 
   useEffect(() => {
@@ -32,19 +40,29 @@ export default function PhotoGallery({ photos, onUpload }: PhotoGalleryProps) {
             sortBy: { column: "created_at", order: "desc" },
           })
           if (fallback.error) return
-          const fallbackUrls =
-            fallback.data?.flatMap((obj) => {
+          const fallbackUrls: RemotePhoto[] =
+            (fallback.data as any)?.flatMap((obj: any) => {
               // ignore les "dossiers" pour éviter 404
-              if ((obj as any).id === undefined && (obj as any).metadata === null) return []
-              return [supabase.storage.from("photos").getPublicUrl(obj.name).data.publicUrl]
+              if (obj.id === undefined && obj.metadata === null) return []
+              const url = supabase.storage.from("photos").getPublicUrl(obj.name).data.publicUrl
+              const thumb =
+                supabase.storage
+                  .from("photos")
+                  .getPublicUrl(obj.name, { transform: { width: 480, quality: 70 } }).data.publicUrl
+              return [{ name: obj.name, url, thumb }]
             }) ?? []
           setRemotePhotos(fallbackUrls)
           return
         }
-        const urls =
-          data?.map((obj) =>
-            supabase.storage.from("photos").getPublicUrl(`event/${obj.name}`).data.publicUrl
-          ) ?? []
+        const urls: RemotePhoto[] =
+          data?.map((obj) => {
+            const full = supabase.storage.from("photos").getPublicUrl(`event/${obj.name}`).data.publicUrl
+            const thumb =
+              supabase.storage
+                .from("photos")
+                .getPublicUrl(`event/${obj.name}`, { transform: { width: 640, quality: 70 } }).data.publicUrl
+            return { name: obj.name, url: full, thumb }
+          }) ?? []
         setRemotePhotos(urls)
       } catch {}
     }
@@ -52,18 +70,20 @@ export default function PhotoGallery({ photos, onUpload }: PhotoGalleryProps) {
   }, [])
 
   const uploadFiles = async (files: FileList) => {
-    const uploadedUrls: string[] = []
+    const uploaded: RemotePhoto[] = []
     for (const file of Array.from(files)) {
       const ext = file.name.split(".").pop() || "png"
       const path = `event/${crypto.randomUUID()}.${ext}`
       const { error: upErr } = await supabase.storage.from("photos").upload(path, file, { upsert: false })
       if (upErr) continue
       const { data } = supabase.storage.from("photos").getPublicUrl(path)
-      uploadedUrls.push(data.publicUrl)
+      const thumb = supabase.storage.from("photos").getPublicUrl(path, { transform: { width: 640, quality: 70 } }).data
+        .publicUrl
+      uploaded.push({ name: path.replace(/^event\\//, ""), url: data.publicUrl, thumb })
     }
-    if (uploadedUrls.length) {
-      setRemotePhotos((prev) => [...uploadedUrls, ...prev])
-      onUpload(uploadedUrls)
+    if (uploaded.length) {
+      setRemotePhotos((prev) => [...uploaded, ...prev])
+      onUpload(uploaded.map((u) => u.url))
     }
   }
 
@@ -95,7 +115,9 @@ export default function PhotoGallery({ photos, onUpload }: PhotoGalleryProps) {
     }
   }
 
-  const allPhotos = [...remotePhotos, ...photos]
+  const allPhotos = [...remotePhotos.map((p) => p.url), ...photos]
+  const allThumbs = new Map(remotePhotos.map((p) => [p.url, p.thumb] as const))
+  const limitedPhotos = typeof limit === "number" ? allPhotos.slice(0, limit) : allPhotos
 
   return (
     <section className="bg-transparent p-4 pb-8">
@@ -110,33 +132,35 @@ export default function PhotoGallery({ photos, onUpload }: PhotoGalleryProps) {
         </div>
 
         {/* Upload Zone */}
-        <div
-          onDragEnter={handleDrag}
-          onDragLeave={handleDrag}
-          onDragOver={handleDrag}
-          onDrop={handleDrop}
-          onClick={() => fileInputRef.current?.click()}
-          className={`skylog-widget border border-dashed border-white/20 p-10 text-center cursor-pointer mb-6 transition-all y2k-neon-border ${
-            dragActive ? "bg-secondary/40" : "bg-card"
-          }`}
-        >
-          <input
-            ref={fileInputRef}
-            type="file"
-            multiple
-            accept="image/*"
-            onChange={handleFileChange}
-            className="hidden"
-          />
-          <p className="text-5xl mb-3 animate-wiggle">📸</p>
-          <p className="text-lg font-black">DRAG & DROP VOS PHOTOS</p>
-          <p className="text-sm font-mono">ou cliquez ici</p>
-        </div>
+        {showUpload && (
+          <div
+            onDragEnter={handleDrag}
+            onDragLeave={handleDrag}
+            onDragOver={handleDrag}
+            onDrop={handleDrop}
+            onClick={() => fileInputRef.current?.click()}
+            className={`skylog-widget border border-dashed border-white/20 p-10 text-center cursor-pointer mb-6 transition-all y2k-neon-border ${
+              dragActive ? "bg-secondary/40" : "bg-card"
+            }`}
+          >
+            <input
+              ref={fileInputRef}
+              type="file"
+              multiple
+              accept="image/*"
+              onChange={handleFileChange}
+              className="hidden"
+            />
+            <p className="text-5xl mb-3 animate-wiggle">📸</p>
+            <p className="text-lg font-black">DRAG & DROP VOS PHOTOS</p>
+            <p className="text-sm font-mono">ou cliquez ici</p>
+          </div>
+        )}
 
         {/* Photos Grid */}
-        {allPhotos.length > 0 ? (
+        {limitedPhotos.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {allPhotos.map((photo, index) => (
+            {limitedPhotos.map((photo, index) => (
               <div
                 key={`${photo}-${index}`}
                 className="skylog-widget border border-white/15 overflow-hidden transform hover:scale-105 transition-transform y2k-polaroid y2k-hover-glow"
@@ -163,7 +187,7 @@ export default function PhotoGallery({ photos, onUpload }: PhotoGalleryProps) {
                 </div>
                 <div className="relative w-full aspect-square bg-black/30 cursor-pointer" onClick={() => setSelectedPhoto(photo)}>
                   <img
-                    src={photo || "/placeholder.svg"}
+                    src={allThumbs.get(photo) || photo || "/placeholder.svg"}
                     alt={`Photo ${index + 1}`}
                     className="w-full h-full object-cover"
                   />
