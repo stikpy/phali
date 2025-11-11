@@ -4,6 +4,7 @@ import type React from "react"
 
 import { useEffect, useRef, useState } from "react"
 import { createClient } from "@/utils/client"
+import { Dialog, DialogContent } from "@/components/ui/dialog"
 
 type RemotePhoto = {
   name: string
@@ -12,8 +13,8 @@ type RemotePhoto = {
 }
 
 interface PhotoGalleryProps {
-  photos: string[]
-  onUpload: (photos: string[]) => void
+  photos: string[] // conservé pour compat mais non utilisé depuis la persistance Supabase
+  onUpload: (photos: string[]) => void // conservé pour compat, non appelé
   limit?: number
   showUpload?: boolean
 }
@@ -23,9 +24,15 @@ export default function PhotoGallery({ photos, onUpload, limit, showUpload = tru
   const [dragActive, setDragActive] = useState(false)
   const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null)
   const [remotePhotos, setRemotePhotos] = useState<RemotePhoto[]>([])
+  const [uploadBlocked, setUploadBlocked] = useState(false)
   const supabase = createClient()
 
   useEffect(() => {
+    // flags
+    fetch("/api/flags")
+      .then((r) => r.json())
+      .then((j) => setUploadBlocked(!!j.uploadBlocked))
+      .catch(() => {})
     const fetchPhotos = async () => {
       try {
         // Liste d'abord les fichiers dans le dossier "event"
@@ -120,7 +127,7 @@ export default function PhotoGallery({ photos, onUpload, limit, showUpload = tru
     }
     if (uploaded.length) {
       setRemotePhotos((prev) => [...uploaded, ...prev])
-      onUpload(uploaded.map((u) => u.url))
+      // Note: on ne met plus à jour le parent via onUpload pour éviter les doublons
     }
   }
 
@@ -152,9 +159,19 @@ export default function PhotoGallery({ photos, onUpload, limit, showUpload = tru
     }
   }
 
-  const allPhotos = [...remotePhotos.map((p) => p.url), ...photos]
-  const allThumbs = new Map(remotePhotos.map((p) => [p.url, p.thumb] as const))
-  const limitedPhotos = typeof limit === "number" ? allPhotos.slice(0, limit) : allPhotos
+  // N’affiche que les photos persistées (remotePhotos) pour éviter les doublons
+  const items = typeof limit === "number" ? remotePhotos.slice(0, limit) : remotePhotos
+  const limitedPhotos = items // compat nommage historique
+
+  // Utilitaire: hash déterministe pour un layout stable
+  const hashString = (s: string) => {
+    let h = 2166136261
+    for (let i = 0; i < s.length; i++) {
+      h ^= s.charCodeAt(i)
+      h = Math.imul(h, 16777619)
+    }
+    return Math.abs(h)
+  }
 
   return (
     <section className="bg-transparent p-4 pb-8">
@@ -169,7 +186,18 @@ export default function PhotoGallery({ photos, onUpload, limit, showUpload = tru
         </div>
 
         {/* Upload Zone */}
-        {showUpload && (
+        {showUpload && uploadBlocked && (
+          <div className="skylog-widget bg-card border border-white/15 y2k-neon-border mb-6">
+            <div className="skylog-widget-header bg-gradient-to-r from-accent/80 to-primary/70">
+              <span>[ Upload temporairement désactivé ]</span>
+            </div>
+            <div className="p-4 text-center text-sm font-mono text-foreground/80">
+              L’administrateur a bloqué l’upload pour le moment.
+            </div>
+          </div>
+        )}
+
+        {showUpload && !uploadBlocked && (
           <div
             onDragEnter={handleDrag}
             onDragLeave={handleDrag}
@@ -196,54 +224,92 @@ export default function PhotoGallery({ photos, onUpload, limit, showUpload = tru
 
         {/* Photos Grid (Bento) */}
         {limitedPhotos.length > 0 ? (
-          <div className="grid grid-cols-2 md:grid-cols-6 gap-4 [grid-auto-rows:8rem] md:[grid-auto-rows:10rem]">
-            {limitedPhotos.map((photo, index) => {
-              const pattern = [
-                { col: 3, row: 2 },
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2 sm:gap-3 [grid-auto-rows:8.5rem] md:[grid-auto-rows:10.5rem]">
+            {limitedPhotos.map((item, index) => {
+              const photo = item.url
+              // Motif bento aléatoire mais stable par photo
+              const shapes = [
+                { col: 3, row: 2 }, // horizontal large
                 { col: 2, row: 2 },
+                { col: 2, row: 1 }, // horizontal
+                { col: 3, row: 1 }, // bandeau
+                { col: 1, row: 2 }, // vertical
                 { col: 1, row: 1 },
-                { col: 2, row: 1 },
-                { col: 1, row: 2 },
-                { col: 3, row: 2 },
+                { col: 4, row: 2 }, // très large
+                { col: 2, row: 3 }, // haut
               ]
-              const p = pattern[index % pattern.length]
-              const mobileCol = p.col >= 2 ? 2 : 1
-              const mobileRow = p.row >= 2 ? 2 : 1
-              const tileSpan = `col-span-${mobileCol} row-span-${mobileRow} md:col-span-${p.col} md:row-span-${p.row}`
+              let p = shapes[hashString(item.name) % shapes.length]
+              if (index === 0) {
+                p = { col: 4, row: 3 }
+              }
+              // Classes Tailwind enumerées (pas d'interpolation dynamique pour la purge)
+              const SPAN_CLASSES: Record<string, string> = {
+                "1x1": "md:col-span-1 md:row-span-1",
+                "2x1": "md:col-span-2 md:row-span-1",
+                "3x1": "md:col-span-3 md:row-span-1",
+                "1x2": "md:col-span-1 md:row-span-2",
+                "2x2": "md:col-span-2 md:row-span-2",
+                "3x2": "md:col-span-3 md:row-span-2",
+                "2x3": "md:col-span-2 md:row-span-3",
+                "4x3": "md:col-span-4 md:row-span-3",
+                "4x2": "md:col-span-4 md:row-span-2",
+              }
+              const key = `${p.col}x${p.row}`
+              const desktopSpan = SPAN_CLASSES[key] || SPAN_CLASSES["1x1"]
+              const mobileSpan =
+                index === 0
+                  ? "col-span-2 row-span-2"
+                  : `${p.col >= 2 ? "col-span-2" : "col-span-1"} ${p.row >= 2 ? "row-span-2" : "row-span-1"}`
+              const tileSpan = `${mobileSpan} ${desktopSpan}`
+              // Image transform approximative pour coller à la tuile
+              const base = 170 // base px approx pour une colonne/ligne (dezoom)
+              const w = Math.min(1200, base * p.col)
+              const h = Math.min(1200, base * p.row)
+              const transformed = supabase.storage
+                .from("photos")
+                .getPublicUrl(`event/${item.name}`, { transform: { width: w, height: h, resize: "cover", quality: 70 } })
+                .data.publicUrl
               return (
                 <div
                   key={`${photo}-${index}`}
-                  className={`skylog-widget border border-white/15 overflow-hidden y2k-polaroid y2k-hover-glow ${tileSpan}`}
-                  style={{ transform: `rotate(${index % 3 ? 1 : -1}deg)` }}
+                  className={`relative group overflow-hidden rounded-xl border border-white/10 ${tileSpan} transition-transform hover:scale-[1.01] cursor-pointer shadow-[0_4px_24px_rgba(0,0,0,0.35)]`}
+                  onClick={() => setSelectedPhoto(photo)}
                 >
-                  <div className="skylog-widget-header bg-primary flex items-center justify-between">
-                    <span>[PHOTO {index + 1}]</span>
+                  {/* Fond de remplissage flou pour éviter toute bande */}
+                  <img
+                    src={transformed || photo || "/placeholder.svg"}
+                    alt=""
+                    aria-hidden="true"
+                    className="absolute inset-0 w-full h-full object-cover blur-[3px] scale-105 opacity-60"
+                  />
+                  {/* Image principale en contain pour voir la photo entière */}
+                  <img
+                    src={transformed || photo || "/placeholder.svg"}
+                    alt={`Photo ${index + 1}`}
+                    className="relative z-10 block w-full h-full object-contain"
+                  />
+                  <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                  <div className="absolute top-2 right-2 z-20 flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                     <div className="flex items-center gap-2">
                       <button
-                        className="skylog-button bg-secondary text-secondary-foreground text-[11px]"
-                        onClick={() => setSelectedPhoto(photo)}
+                        className="skylog-button bg-secondary text-secondary-foreground text-[10px] px-2 py-1"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setSelectedPhoto(photo)
+                        }}
                       >
                         Voir
                       </button>
                       <a
                         href={photo}
                         download
-                        className="skylog-button bg-accent text-foreground text-[11px]"
+                        className="skylog-button bg-accent text-foreground text-[10px] px-2 py-1"
                         aria-label="Télécharger la photo"
+                        onClick={(e) => e.stopPropagation()}
                       >
                         Télécharger
                       </a>
                     </div>
-                  </div>
-                  <div
-                    className="relative w-full h-full min-h-[8rem] md:min-h-[10rem] bg-black/30 cursor-pointer"
-                    onClick={() => setSelectedPhoto(photo)}
-                  >
-                    <img
-                      src={allThumbs.get(photo) || photo || "/placeholder.svg"}
-                      alt={`Photo ${index + 1}`}
-                      className="w-full h-full object-cover"
-                    />
                   </div>
                 </div>
               )
@@ -258,34 +324,27 @@ export default function PhotoGallery({ photos, onUpload, limit, showUpload = tru
           </div>
         )}
 
-        {/* Lightbox */}
-        {selectedPhoto && (
-          <div
-            className="fixed inset-0 bg-black/95 z-50 flex items-center justify-center p-4 y2k-scanlines"
-            onClick={() => setSelectedPhoto(null)}
-          >
-            <div className="skylog-widget max-w-4xl w-full border border-white/15 bg-card" onClick={(e) => e.stopPropagation()}>
+        {/* Modal d’aperçu */}
+        <Dialog open={!!selectedPhoto} onOpenChange={(o) => !o && setSelectedPhoto(null)}>
+          <DialogContent className="bg-transparent border-0 p-0 w-auto max-w-md sm:max-w-lg" showCloseButton>
+            <div className="relative">
               <img
                 src={selectedPhoto || "/placeholder.svg"}
                 alt="Full size"
-                className="w-full h-auto max-h-96 object-contain"
+                className="w-full h-auto max-h-[50vh] object-contain rounded-md"
               />
-              <a
-                href={selectedPhoto}
-                download
-                className="absolute -top-6 left-0 skylog-button bg-accent text-foreground text-xs"
-              >
-                Télécharger
-              </a>
-              <button
-                className="absolute -top-6 -right-6 text-4xl font-black text-accent cursor-pointer hover:animate-bounce-flash"
-                onClick={() => setSelectedPhoto(null)}
-              >
-                ✕
-              </button>
+              {selectedPhoto && (
+                <a
+                  href={selectedPhoto}
+                  download
+                  className="absolute top-3 left-3 skylog-button bg-accent text-foreground text-xs"
+                >
+                  Télécharger
+                </a>
+              )}
             </div>
-          </div>
-        )}
+          </DialogContent>
+        </Dialog>
       </div>
     </section>
   )

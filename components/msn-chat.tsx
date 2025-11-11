@@ -13,6 +13,7 @@ export default function MSNChat() {
   const [open, setOpen] = useState(false)
   const [messages, setMessages] = useState<ChatMsg[]>([])
   const [input, setInput] = useState("")
+  const [chatBlocked, setChatBlocked] = useState(false)
   const [nick, setNick] = useState("")
   const [editingNick, setEditingNick] = useState(false)
   const [status, setStatus] = useState<"online" | "busy" | "away" | "offline">("online")
@@ -27,6 +28,12 @@ export default function MSNChat() {
   }, [open, messages])
 
   useEffect(() => {
+    // flags
+    fetch("/api/flags")
+      .then((r) => r.json())
+      .then((j) => setChatBlocked(!!j.chatBlocked))
+      .catch(() => {})
+
     // ouvrir par défaut uniquement sur desktop (>= 1024px)
     try {
       if (window.innerWidth >= 1024) setOpen(true)
@@ -128,7 +135,7 @@ export default function MSNChat() {
   }, [])
 
   const send = () => {
-    if (!input.trim()) return
+    if (!input.trim() || chatBlocked) return
     const author = nick.trim() || "Anonyme"
     // persist nick into cookie and localStorage
     try {
@@ -219,11 +226,12 @@ export default function MSNChat() {
             <input
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              className="flex-1 px-2 py-2 border border-white/20 bg-background/70 text-foreground font-mono text-sm focus:outline-none focus:ring-2 focus:ring-[var(--neon-2)]"
-              placeholder="Tape ton message..."
+              className="flex-1 px-2 py-2 border border-white/20 bg-background/70 text-foreground font-mono text-sm focus:outline-none focus:ring-2 focus:ring-[var(--neon-2)] disabled:opacity-60"
+              placeholder={chatBlocked ? "Chat bloqué par l’admin" : "Tape ton message..."}
+              disabled={chatBlocked}
               onKeyDown={(e) => e.key === "Enter" && send()}
             />
-            <button className="skylog-button bg-primary" onClick={send}>
+            <button className="skylog-button bg-primary disabled:opacity-60" onClick={send} disabled={chatBlocked}>
               Envoyer
             </button>
           </div>

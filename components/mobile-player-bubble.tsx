@@ -24,28 +24,28 @@ export default function MobilePlayerBubble() {
         }`}
         aria-hidden={!open}
       >
-        {/* overlay */}
+          {/* overlay */}
         <div
           className={`absolute inset-0 bg-black/60 transition-opacity duration-300 ${
             open ? "opacity-100" : "opacity-0"
           }`}
           onClick={() => setOpen(false)}
         />
-        {/* drawer */}
+          {/* drawer */}
         <div
           className={`absolute bottom-0 left-0 right-0 bg-card border-t border-white/15 y2k-neon-border rounded-t-xl p-3 transform transition-transform duration-300 ${
             open ? "translate-y-0" : "translate-y-full"
           }`}
         >
-          <div className="flex items-center justify-between mb-2">
-            <div className="text-xs font-black uppercase tracking-wide">[ Lecteur • Playlist ]</div>
-            <button className="skylog-button bg-primary" onClick={() => setOpen(false)}>
-              Fermer
-            </button>
+            <div className="flex items-center justify-between mb-2">
+              <div className="text-xs font-black uppercase tracking-wide">[ Lecteur • Playlist ]</div>
+              <button className="skylog-button bg-primary" onClick={() => setOpen(false)}>
+                Fermer
+              </button>
+            </div>
+            <SpotifyPlayer />
           </div>
-          <SpotifyPlayer />
         </div>
-      </div>
     </>
   )
 }

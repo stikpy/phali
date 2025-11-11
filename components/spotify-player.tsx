@@ -13,8 +13,8 @@ export default function SpotifyPlayer({ onClose }: SpotifyPlayerProps) {
     <div className="skylog-widget bg-card border border-white/15 y2k-neon-border overflow-hidden">
       <div className="skylog-widget-header bg-gradient-to-r from-secondary/80 to-primary/70 flex items-center justify-between">
         <div className="flex flex-col">
-          <span>[ PLAYLIST 2000 ]</span>
-          <span className="text-[10px] uppercase tracking-[0.4em] text-foreground/70">Best of 2000s</span>
+        <span>[ PLAYLIST 2000 ]</span>
+        <span className="text-[10px] uppercase tracking-[0.4em] text-foreground/70">Best of 2000s</span>
         </div>
         {onClose && (
           <button

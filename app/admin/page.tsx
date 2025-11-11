@@ -37,11 +37,24 @@ export default function AdminDashboard() {
   const [chat, setChat] = useState<ChatRow[]>([])
   // Photos
   const [photos, setPhotos] = useState<PhotoObj[]>([])
+  const [flags, setFlags] = useState<{ chatBlocked: boolean; uploadBlocked: boolean }>({
+    chatBlocked: false,
+    uploadBlocked: false,
+  })
+  const [wizzCount, setWizzCount] = useState<number>(0)
 
   const photoUrl = (name: string) => supabase.storage.from("photos").getPublicUrl(`event/${name}`).data.publicUrl
   const photoThumb = (name: string) =>
     supabase.storage.from("photos").getPublicUrl(`event/${name}`, { transform: { width: 200, quality: 60 } }).data
       .publicUrl
+  const hashString = (s: string) => {
+    let h = 2166136261
+    for (let i = 0; i < s.length; i++) {
+      h ^= s.charCodeAt(i)
+      h = Math.imul(h, 16777619)
+    }
+    return Math.abs(h)
+  }
 
   useEffect(() => {
     // Load RSVP
@@ -68,6 +81,25 @@ export default function AdminDashboard() {
       })
       setPhotos((data as PhotoObj[]) || [])
     })()
+    // Load flags
+    ;(async () => {
+      try {
+        const r = await fetch("/api/admin/flags")
+        const j = await r.json()
+        setFlags({ chatBlocked: !!j.chatBlocked, uploadBlocked: !!j.uploadBlocked })
+      } catch {}
+    })()
+    // Load wizz count + subscribe realtime
+    ;(async () => {
+      const { count } = await supabase.from("wizz_events").select("*", { count: "exact", head: true })
+      setWizzCount(count || 0)
+    })()
+    const wizzCh = supabase
+      .channel("wizz-events")
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "wizz_events" }, () =>
+        setWizzCount((c) => c + 1),
+      )
+      .subscribe()
     // Realtime photos
     const photosCh = supabase
       .channel("admin-photos")
@@ -94,6 +126,7 @@ export default function AdminDashboard() {
     return () => {
       supabase.removeChannel(ch)
       supabase.removeChannel(photosCh)
+      supabase.removeChannel(wizzCh)
     }
   }, [supabase])
 
@@ -104,13 +137,13 @@ export default function AdminDashboard() {
 
   return (
     <main className="min-h-screen crt-layer">
-      <PageShell>
+      <PageShell showSidebars={false}>
         <div className="space-y-6">
           <header className="skylog-widget secondary y2k-neon-border">
             <div className="skylog-widget-header">
               <span>[ ADMIN • DASHBOARD ]</span>
             </div>
-            <div className="p-4 flex flex-wrap gap-2">
+            <div className="p-4 flex flex-wrap items-center gap-2">
               <button
                 className={`skylog-button ${tab === "rsvp" ? "bg-primary" : "bg-secondary"}`}
                 onClick={() => setTab("rsvp")}
@@ -129,6 +162,36 @@ export default function AdminDashboard() {
               >
                 Photos
               </button>
+              <div className="ml-auto flex items-center gap-2">
+                <span className="text-[11px] font-mono text-foreground/70">Wizz total:</span>
+                <span className="font-black">{wizzCount}</span>
+                <button
+                  className={`skylog-button ${flags.chatBlocked ? "bg-accent text-foreground" : "bg-secondary"}`}
+                  onClick={async () => {
+                    await fetch("/api/admin/flags", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ chat: !flags.chatBlocked }),
+                    })
+                    setFlags((f) => ({ ...f, chatBlocked: !f.chatBlocked }))
+                  }}
+                >
+                  {flags.chatBlocked ? "Débloquer chat" : "Bloquer chat"}
+                </button>
+                <button
+                  className={`skylog-button ${flags.uploadBlocked ? "bg-accent text-foreground" : "bg-secondary"}`}
+                  onClick={async () => {
+                    await fetch("/api/admin/flags", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ upload: !flags.uploadBlocked }),
+                    })
+                    setFlags((f) => ({ ...f, uploadBlocked: !f.uploadBlocked }))
+                  }}
+                >
+                  {flags.uploadBlocked ? "Débloquer upload" : "Bloquer upload"}
+                </button>
+              </div>
             </div>
           </header>
 
@@ -224,33 +287,84 @@ export default function AdminDashboard() {
             <section className="space-y-3">
               <div className="skylog-widget bg-card border border-white/15 y2k-neon-border">
                 <div className="skylog-widget-header">Photos (bucket: photos/event)</div>
-                <div className="p-3 grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
-                  {photos.map((p) => {
-                    const url = photoUrl(p.name)
-                    return (
-                      <div key={p.name} className="relative group">
-                        <img src={photoThumb(p.name)} alt={p.name} className="w-full h-24 object-cover rounded-md border border-white/15" />
-                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition flex items-center justify-center gap-2">
-                          <a href={url} download className="skylog-button bg-secondary text-xs">
-                            Télécharger
-                          </a>
-                          <button
-                            className="skylog-button bg-accent text-foreground text-xs"
-                            onClick={async () => {
-                              await fetch("/api/admin/photos/delete", {
-                                method: "POST",
-                                headers: { "Content-Type": "application/json" },
-                                body: JSON.stringify({ path: `event/${p.name}` }),
-                              })
-                              setPhotos((prev) => prev.filter((x) => x.name !== p.name))
-                            }}
-                          >
-                            Supprimer
-                          </button>
+                <div className="p-3">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2 sm:gap-3 [grid-auto-rows:8.5rem] md:[grid-auto-rows:10.5rem]">
+                    {photos.map((p, i) => {
+                      const url = photoUrl(p.name)
+                      const shapes = [
+                        { col: 3, row: 2 },
+                        { col: 2, row: 2 },
+                        { col: 2, row: 1 },
+                        { col: 3, row: 1 },
+                        { col: 1, row: 2 },
+                        { col: 1, row: 1 },
+                        { col: 4, row: 2 },
+                      ]
+                      let s = shapes[hashString(p.name) % shapes.length]
+                      if (i === 0) {
+                        s = { col: 4, row: 3 }
+                      }
+                      // Tailwind classes énumérées
+                      const SPAN_CLASSES: Record<string, string> = {
+                        "1x1": "md:col-span-1 md:row-span-1",
+                        "2x1": "md:col-span-2 md:row-span-1",
+                        "3x1": "md:col-span-3 md:row-span-1",
+                        "1x2": "md:col-span-1 md:row-span-2",
+                        "2x2": "md:col-span-2 md:row-span-2",
+                        "3x2": "md:col-span-3 md:row-span-2",
+                        "2x3": "md:col-span-2 md:row-span-3",
+                        "4x3": "md:col-span-4 md:row-span-3",
+                        "4x2": "md:col-span-4 md:row-span-2",
+                      }
+                      const key = `${s.col}x${s.row}`
+                      const desktopSpan = SPAN_CLASSES[key] || SPAN_CLASSES["1x1"]
+                      const mobileSpan =
+                        i === 0
+                          ? "col-span-2 row-span-2"
+                          : `${s.col >= 2 ? "col-span-2" : "col-span-1"} ${s.row >= 2 ? "row-span-2" : "row-span-1"}`
+                      const tileSpan = `${mobileSpan} ${desktopSpan}`
+                      const base = 160
+                      const w = Math.min(1200, base * s.col)
+                      const h = Math.min(1200, base * s.row)
+                      const thumb = supabase.storage
+                        .from("photos")
+                        .getPublicUrl(`event/${p.name}`, {
+                          transform: { width: w, height: h, resize: "cover", quality: 65 },
+                        }).data.publicUrl
+                      return (
+                        <div
+                          key={`${p.name}-${i}`}
+                          className={`relative group overflow-hidden rounded-lg border border-white/10 ${tileSpan}`}
+                        >
+                          <img
+                            src={thumb}
+                            alt=""
+                            aria-hidden="true"
+                            className="pointer-events-none absolute inset-0 w-full h-full object-cover blur-sm scale-105 opacity-70"
+                          />
+                          <img src={thumb} alt={p.name} className="relative z-10 block w-full h-full object-contain" />
+                          <div className="absolute inset-0 z-20 bg-black/35 opacity-0 group-hover:opacity-100 transition flex items-center justify-center gap-2">
+                            <a href={url} download className="skylog-button bg-secondary text-xs">
+                              Télécharger
+                            </a>
+                            <button
+                              className="skylog-button bg-accent text-foreground text-xs"
+                              onClick={async () => {
+                                await fetch("/api/admin/photos/delete", {
+                                  method: "POST",
+                                  headers: { "Content-Type": "application/json" },
+                                  body: JSON.stringify({ path: `event/${p.name}` }),
+                                })
+                                setPhotos((prev) => prev.filter((x) => x.name !== p.name))
+                              }}
+                            >
+                              Supprimer
+                            </button>
+                          </div>
                         </div>
-                      </div>
-                    )
-                  })}
+                      )
+                    })}
+                  </div>
                 </div>
               </div>
             </section>

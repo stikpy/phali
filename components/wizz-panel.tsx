@@ -1,11 +1,13 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { triggerWizz } from "@/lib/wizz"
+import { createClient } from "@/utils/client"
 
 export default function WizzPanel() {
   const [status, setStatus] = useState<"idle" | "sent">("idle")
   const [lastSent, setLastSent] = useState<number | null>(null)
+  const supabase = useMemo(() => createClient(), [])
 
   useEffect(() => {
     if (status !== "sent") return
@@ -14,6 +16,23 @@ export default function WizzPanel() {
   }, [status])
 
   const handleClick = () => {
+    // anti‑spam: 8s de cooldown local
+    if (lastSent && Date.now() - lastSent < 8000) return
+    // broadcast vers tous les clients
+    const channel = supabase.channel("wizz-global")
+    channel.subscribe(async (status) => {
+      if (status === "SUBSCRIBED") {
+        await channel.send({
+          type: "broadcast",
+          event: "wizz",
+          payload: { at: Date.now() },
+        })
+        channel.unsubscribe()
+      }
+    })
+    // log table (best‑effort)
+    void fetch("/api/wizz", { method: "POST" }).catch(() => {})
+    // feedback local immédiat
     triggerWizz()
     setStatus("sent")
     setLastSent(Date.now())

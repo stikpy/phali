@@ -3,7 +3,11 @@
 import { useEffect, useState } from "react"
 import { logEvent } from "@/app/actions/log"
 
-export default function VisitClock() {
+type VisitClockProps = {
+  inline?: boolean
+}
+
+export default function VisitClock({ inline = false }: VisitClockProps) {
   const [visits, setVisits] = useState(0)
   const [now, setNow] = useState<Date | null>(null)
   const [hydrated, setHydrated] = useState(false)
@@ -47,6 +51,18 @@ export default function VisitClock() {
     hydrated && now
       ? `${pad(now.getDate())}/${pad(now.getMonth() + 1)}/${now.getFullYear()}`
       : "--/--/----"
+
+  if (inline) {
+    return (
+      <div className="flex items-center gap-3 text-[11px] font-mono">
+        <span className="uppercase tracking-[0.25em] text-foreground/70">Visites</span>
+        <span className="font-bold">{visits}</span>
+        <span className="w-px h-3 bg-white/20" />
+        <span className="uppercase tracking-[0.25em] text-foreground/70">Heure</span>
+        <span className="font-black led">{time}</span>
+      </div>
+    )
+  }
 
   return (
     <div className="skylog-widget bg-card border border-white/15 y2k-neon-border max-w-full md:max-w-sm">

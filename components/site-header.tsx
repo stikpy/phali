@@ -2,6 +2,7 @@
 
 import Link from "next/link"
 import { useState } from "react"
+import VisitClock from "@/components/visit-clock"
 import { triggerWizz } from "@/lib/wizz"
 
 const links = [
@@ -32,6 +33,9 @@ export default function SiteHeader() {
           </nav>
 
           <div className="flex items-center gap-3">
+            <div className="hidden sm:block">
+              <VisitClock inline />
+            </div>
             <button className="skylog-button text-xs px-4 py-2 hidden sm:inline-flex" onClick={triggerWizz}>
               Wizz Flash
             </button>

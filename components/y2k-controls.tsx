@@ -72,12 +72,11 @@ export default function Y2KControls() {
         </div>
 
       {/* Masqué en mobile pour éviter le doublon avec la bulle du lecteur */}
-      {showSpotify && (
-        <div className="hidden md:block">
-          <SpotifyPlayer />
-        </div>
-      )}
-        <VisitClock />
+        {showSpotify && (
+          <div className="hidden md:block">
+            <SpotifyPlayer />
+          </div>
+        )}
 
         <div className="flex gap-2 flex-wrap">
           <span className="badge-pixel">Best viewed in 1024×768</span>
