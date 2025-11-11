@@ -1,6 +1,10 @@
 "use client"
 
 export default function SpotifyPlayer() {
+  const playlistId =
+    process.env.NEXT_PUBLIC_SPOTIFY_PLAYLIST_ID ||
+    "0Wq9rjNVV4BdqMbWXFJcn4" // fallback playlist
+  const embedUrl = `https://open.spotify.com/embed/playlist/${playlistId}?utm_source=generator`
   return (
     <div className="skylog-widget bg-card border border-white/15 y2k-neon-border overflow-hidden">
       <div className="skylog-widget-header bg-gradient-to-r from-secondary/80 to-primary/70">
@@ -9,7 +13,7 @@ export default function SpotifyPlayer() {
       </div>
       <div className="p-0">
         <iframe
-          src="https://open.spotify.com/embed/playlist/0Wq9rjNVV4BdqMbWXFJcn4?utm_source=generator"
+          src={embedUrl}
           width="100%"
           height="420"
           allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"

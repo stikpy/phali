@@ -1,15 +1,11 @@
 import type React from "react"
 import type { Metadata } from "next"
-import { Geist, Geist_Mono } from "next/font/google"
 import { Analytics } from "@vercel/analytics/next"
 import "./globals.css"
 import SiteHeader from "@/components/site-header"
 import SiteFooter from "@/components/site-footer"
 import MSNChat from "@/components/msn-chat"
 import Y2KControls from "@/components/y2k-controls"
-
-const _geist = Geist({ subsets: ["latin"] })
-const _geistMono = Geist_Mono({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
   title: "🎉 40 ans - Influence Année 2000 | Anniversaire",
