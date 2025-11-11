@@ -1,8 +1,9 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { triggerWizz } from "@/lib/wizz"
 import { createClient } from "@/utils/client"
+import { sendWizzBroadcast } from "@/lib/wizz-realtime"
 import { sendChatMessage } from "@/app/actions/chat"
 import { logEvent } from "@/app/actions/log"
 import { updatePresence } from "@/app/actions/presence"
@@ -17,10 +18,12 @@ export default function MSNChat() {
   const [nick, setNick] = useState("")
   const [editingNick, setEditingNick] = useState(false)
   const [status, setStatus] = useState<"online" | "busy" | "away" | "offline">("online")
+  const supabase = useMemo(() => createClient(), [])
   const containerRef = useRef<HTMLDivElement>(null)
   const subscribedRef = useRef(false)
   const seenIdsRef = useRef<Set<string>>(new Set())
   const sessionIdRef = useRef<string>("")
+  const lastWizzRef = useRef<number>(0)
 
   useEffect(() => {
     if (!open) return
@@ -87,7 +90,6 @@ export default function MSNChat() {
     // load history + subscribe realtime
     if (!subscribedRef.current) {
       subscribedRef.current = true
-      const supabase = createClient()
       const load = async () => {
         const { data } = await supabase
           .from("chat_messages")
@@ -157,7 +159,14 @@ export default function MSNChat() {
     })
   }
 
-  const wizz = () => triggerWizz()
+  const wizz = () => {
+    const now = Date.now()
+    if (now - lastWizzRef.current < 8000) return
+    lastWizzRef.current = now
+    void sendWizzBroadcast({ at: Date.now(), from: nick || "Anonyme" })
+    void fetch("/api/wizz", { method: "POST" }).catch(() => {})
+    triggerWizz()
+  }
 
   return (
     <div className="fixed bottom-6 left-6 z-50">

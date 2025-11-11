@@ -1,13 +1,12 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useState } from "react"
 import { triggerWizz } from "@/lib/wizz"
-import { createClient } from "@/utils/client"
+import { sendWizzBroadcast } from "@/lib/wizz-realtime"
 
 export default function WizzPanel() {
   const [status, setStatus] = useState<"idle" | "sent">("idle")
   const [lastSent, setLastSent] = useState<number | null>(null)
-  const supabase = useMemo(() => createClient(), [])
 
   useEffect(() => {
     if (status !== "sent") return
@@ -18,18 +17,8 @@ export default function WizzPanel() {
   const handleClick = () => {
     // anti‑spam: 8s de cooldown local
     if (lastSent && Date.now() - lastSent < 8000) return
-    // broadcast vers tous les clients
-    const channel = supabase.channel("wizz-global")
-    channel.subscribe(async (status) => {
-      if (status === "SUBSCRIBED") {
-        await channel.send({
-          type: "broadcast",
-          event: "wizz",
-          payload: { at: Date.now() },
-        })
-        channel.unsubscribe()
-      }
-    })
+    // broadcast vers tous les clients (canal persistant)
+    void sendWizzBroadcast({ at: Date.now() })
     // log table (best‑effort)
     void fetch("/api/wizz", { method: "POST" }).catch(() => {})
     // feedback local immédiat
@@ -68,7 +57,13 @@ export default function WizzPanel() {
         <div
           className={`y2k-marquee ${status === "sent" ? "opacity-100" : "opacity-40"} transition-opacity duration-300`}
         >
-          <span>{status === "sent" ? ">>> WIZZ EXPÉDIÉ ! TOUT LE MONDE TREMBLE. <<<" : "Aucun wizz envoyé pour le moment."}</span>
+          <span>
+            {status === "sent"
+              ? ">>> WIZZ EXPÉDIÉ ! TOUT LE MONDE TREMBLE. <<<"
+              : lastSent
+              ? `Dernier wizz: ${new Date(lastSent).toLocaleTimeString()}`
+              : "Aucun wizz envoyé pour le moment."}
+          </span>
         </div>
       </div>
     </div>

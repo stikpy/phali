@@ -2,13 +2,15 @@
 
 import { useEffect, useMemo, useRef } from "react"
 import { createClient } from "@/utils/client"
-import { triggerWizz } from "@/lib/wizz"
+import { triggerWizz, enableWizzAutoplay } from "@/lib/wizz"
 
 export default function WizzListener() {
   const supabase = useMemo(() => createClient(), [])
   const lastRef = useRef(0)
 
   useEffect(() => {
+    // Prime audio une fois après une première interaction
+    enableWizzAutoplay()
     const ch = supabase.channel("wizz-global")
     ch.on("broadcast", { event: "wizz" }, (payload) => {
       const now = Date.now()
