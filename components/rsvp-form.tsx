@@ -20,7 +20,7 @@ export default function RSVPForm() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
   const fileRef = useRef<HTMLInputElement>(null)
-  const [status, setStatus] = useState<"present" | "absent" | "unsure">("unsure")
+  const [status, setStatus] = useState<"present" | "absent" | "unsure">("present")
   const [reminder, setReminder] = useState(false)
   const defaultAvatars = [
     "/avatars/default/avatar-1.svg",
@@ -88,7 +88,7 @@ export default function RSVPForm() {
 
       setSubmitted(true)
       setFormData({ name: "", email: "", guests: "1", message: "" })
-      setStatus("unsure")
+      setStatus("present")
       setReminder(false)
       setSelectedAvatar(null)
       setPreviewUrl(null)

@@ -5,6 +5,7 @@ import { triggerWizz } from "@/lib/wizz"
 import { createClient } from "@/utils/client"
 import { sendChatMessage } from "@/app/actions/chat"
 import { logEvent } from "@/app/actions/log"
+import { updatePresence } from "@/app/actions/presence"
 
 type ChatMsg = { id: string; from: string; text: string; at: number }
 
@@ -14,9 +15,11 @@ export default function MSNChat() {
   const [input, setInput] = useState("")
   const [nick, setNick] = useState("")
   const [editingNick, setEditingNick] = useState(false)
+  const [status, setStatus] = useState<"online" | "busy" | "away" | "offline">("online")
   const containerRef = useRef<HTMLDivElement>(null)
   const subscribedRef = useRef(false)
   const seenIdsRef = useRef<Set<string>>(new Set())
+  const sessionIdRef = useRef<string>("")
 
   useEffect(() => {
     if (!open) return
@@ -58,6 +61,21 @@ export default function MSNChat() {
       document.cookie = `y2k_chat_nick=${encodeURIComponent(initial)}; path=/`
       localStorage.setItem("y2k-chat-nick", initial)
     } catch {}
+
+    // status
+    try {
+      const s = (sessionStorage.getItem("y2k-chat-status") as any) || "online"
+      setStatus(s)
+    } catch {}
+
+    // session id
+    try {
+      const existing = localStorage.getItem("y2k-chat-session")
+      sessionIdRef.current = existing || crypto.randomUUID()
+      localStorage.setItem("y2k-chat-session", sessionIdRef.current)
+    } catch {
+      sessionIdRef.current = crypto.randomUUID()
+    }
 
     // load history + subscribe realtime
     if (!subscribedRef.current) {

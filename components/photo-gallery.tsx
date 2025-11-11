@@ -2,7 +2,8 @@
 
 import type React from "react"
 
-import { useRef, useState } from "react"
+import { useEffect, useRef, useState } from "react"
+import { createClient } from "@/utils/client"
 
 interface PhotoGalleryProps {
   photos: string[]
@@ -13,12 +14,64 @@ export default function PhotoGallery({ photos, onUpload }: PhotoGalleryProps) {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [dragActive, setDragActive] = useState(false)
   const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null)
+  const [remotePhotos, setRemotePhotos] = useState<string[]>([])
+  const supabase = createClient()
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  useEffect(() => {
+    const fetchPhotos = async () => {
+      try {
+        // Liste d'abord les fichiers dans le dossier "event"
+        const { data, error } = await supabase.storage.from("photos").list("event", {
+          limit: 1000,
+          sortBy: { column: "created_at", order: "desc" },
+        })
+        if (error) {
+          // fallback: tenter la racine si le dossier n'existe pas encore
+          const fallback = await supabase.storage.from("photos").list(undefined, {
+            limit: 1000,
+            sortBy: { column: "created_at", order: "desc" },
+          })
+          if (fallback.error) return
+          const fallbackUrls =
+            fallback.data?.flatMap((obj) => {
+              // ignore les "dossiers" pour éviter 404
+              if ((obj as any).id === undefined && (obj as any).metadata === null) return []
+              return [supabase.storage.from("photos").getPublicUrl(obj.name).data.publicUrl]
+            }) ?? []
+          setRemotePhotos(fallbackUrls)
+          return
+        }
+        const urls =
+          data?.map((obj) =>
+            supabase.storage.from("photos").getPublicUrl(`event/${obj.name}`).data.publicUrl
+          ) ?? []
+        setRemotePhotos(urls)
+      } catch {}
+    }
+    fetchPhotos()
+  }, [])
+
+  const uploadFiles = async (files: FileList) => {
+    const uploadedUrls: string[] = []
+    for (const file of Array.from(files)) {
+      const ext = file.name.split(".").pop() || "png"
+      const path = `event/${crypto.randomUUID()}.${ext}`
+      const { error: upErr } = await supabase.storage.from("photos").upload(path, file, { upsert: false })
+      if (upErr) continue
+      const { data } = supabase.storage.from("photos").getPublicUrl(path)
+      uploadedUrls.push(data.publicUrl)
+    }
+    if (uploadedUrls.length) {
+      setRemotePhotos((prev) => [...uploadedUrls, ...prev])
+      onUpload(uploadedUrls)
+    }
+  }
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files
     if (files) {
-      const newPhotos = Array.from(files).map((file) => URL.createObjectURL(file))
-      onUpload(newPhotos)
+      await uploadFiles(files)
+      if (fileInputRef.current) fileInputRef.current.value = ""
     }
   }
 
@@ -32,16 +85,17 @@ export default function PhotoGallery({ photos, onUpload }: PhotoGalleryProps) {
     }
   }
 
-  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+  const handleDrop = async (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault()
     e.stopPropagation()
     setDragActive(false)
     const files = e.dataTransfer.files
     if (files) {
-      const newPhotos = Array.from(files).map((file) => URL.createObjectURL(file))
-      onUpload(newPhotos)
+      await uploadFiles(files)
     }
   }
+
+  const allPhotos = [...remotePhotos, ...photos]
 
   return (
     <section className="bg-transparent p-4 pb-8">
@@ -80,19 +134,34 @@ export default function PhotoGallery({ photos, onUpload }: PhotoGalleryProps) {
         </div>
 
         {/* Photos Grid */}
-        {photos.length > 0 ? (
+        {allPhotos.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {photos.map((photo, index) => (
+            {allPhotos.map((photo, index) => (
               <div
-                key={index}
-                className="skylog-widget border border-white/15 cursor-pointer overflow-hidden transform hover:scale-105 transition-transform y2k-polaroid y2k-hover-glow"
-                onClick={() => setSelectedPhoto(photo)}
+                key={`${photo}-${index}`}
+                className="skylog-widget border border-white/15 overflow-hidden transform hover:scale-105 transition-transform y2k-polaroid y2k-hover-glow"
                 style={{ transform: `rotate(${index % 3 ? 1 : -1}deg)` }}
               >
-                <div className="skylog-widget-header bg-primary">
+                <div className="skylog-widget-header bg-primary flex items-center justify-between">
                   <span>[PHOTO {index + 1}]</span>
+                  <div className="flex items-center gap-2">
+                    <button
+                      className="skylog-button bg-secondary text-secondary-foreground text-[11px]"
+                      onClick={() => setSelectedPhoto(photo)}
+                    >
+                      Voir
+                    </button>
+                    <a
+                      href={photo}
+                      download
+                      className="skylog-button bg-accent text-foreground text-[11px]"
+                      aria-label="Télécharger la photo"
+                    >
+                      Télécharger
+                    </a>
+                  </div>
                 </div>
-                <div className="relative w-full aspect-square bg-black/30">
+                <div className="relative w-full aspect-square bg-black/30 cursor-pointer" onClick={() => setSelectedPhoto(photo)}>
                   <img
                     src={photo || "/placeholder.svg"}
                     alt={`Photo ${index + 1}`}
@@ -123,6 +192,13 @@ export default function PhotoGallery({ photos, onUpload }: PhotoGalleryProps) {
                 alt="Full size"
                 className="w-full h-auto max-h-96 object-contain"
               />
+              <a
+                href={selectedPhoto}
+                download
+                className="absolute -top-6 left-0 skylog-button bg-accent text-foreground text-xs"
+              >
+                Télécharger
+              </a>
               <button
                 className="absolute -top-6 -right-6 text-4xl font-black text-accent cursor-pointer hover:animate-bounce-flash"
                 onClick={() => setSelectedPhoto(null)}

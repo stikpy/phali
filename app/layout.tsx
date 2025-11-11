@@ -6,6 +6,7 @@ import SiteHeader from "@/components/site-header"
 import SiteFooter from "@/components/site-footer"
 import MSNChat from "@/components/msn-chat"
 import Y2KControls from "@/components/y2k-controls"
+import MobilePlayerBubble from "@/components/mobile-player-bubble"
 
 export const metadata: Metadata = {
   title: "🎉 40 ans - Influence Année 2000 | Anniversaire",
@@ -44,6 +45,7 @@ export default function RootLayout({
         <SiteFooter />
         <MSNChat />
         <Y2KControls />
+        <MobilePlayerBubble />
         <Analytics />
       </body>
     </html>

@@ -63,15 +63,20 @@ export default function Y2KControls() {
               CRT Pro
             </button>
             <button
-              className={`skylog-button ${showSpotify ? "bg-secondary text-foreground" : "bg-primary"}`}
+              className={`skylog-button ${showSpotify ? "bg-accent text-foreground y2k-hover-glow" : "bg-primary"}`}
               onClick={() => setShowSpotify((v) => !v)}
             >
-              Spotify
+              {showSpotify ? "Fermer" : "Spotify"}
             </button>
           </div>
         </div>
 
-        {showSpotify && <SpotifyPlayer />}
+      {/* Masqué en mobile pour éviter le doublon avec la bulle du lecteur */}
+      {showSpotify && (
+        <div className="hidden md:block">
+          <SpotifyPlayer />
+        </div>
+      )}
         <VisitClock />
 
         <div className="flex gap-2 flex-wrap">
