@@ -8,7 +8,6 @@ import RSVPForm from "@/components/rsvp-form"
 import Guestbook from "@/components/guestbook"
 import TopFriends from "@/components/top-friends"
 import PageShell from "@/components/page-shell"
-import PhotoGallery from "@/components/photo-gallery"
 
 export default function Home() {
   const [photos, setPhotos] = useState<string[]>([])

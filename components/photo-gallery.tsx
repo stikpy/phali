@@ -79,7 +79,8 @@ export default function PhotoGallery({ photos, onUpload, limit, showUpload = tru
       const { data } = supabase.storage.from("photos").getPublicUrl(path)
       const thumb = supabase.storage.from("photos").getPublicUrl(path, { transform: { width: 640, quality: 70 } }).data
         .publicUrl
-      uploaded.push({ name: path.replace(/^event\\//, ""), url: data.publicUrl, thumb })
+      const cleanName = path.startsWith("event/") ? path.slice("event/".length) : path
+      uploaded.push({ name: cleanName, url: data.publicUrl, thumb })
     }
     if (uploaded.length) {
       setRemotePhotos((prev) => [...uploaded, ...prev])
