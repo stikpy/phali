@@ -52,6 +52,42 @@ export default function PhotoGallery({ photos, onUpload, limit, showUpload = tru
     fetchPhotos()
   }, [])
 
+  // Fallback polling si realtime indisponible (compatible HTTPS)
+  useEffect(() => {
+    let timer: any
+    let cancelled = false
+    const refresh = async () => {
+      try {
+        if (document.hidden) return
+        const r = await fetch("/api/minio/list", { cache: "no-store" })
+        const json = await r.json()
+        const currentNames = new Set((json.items || []).map((it: any) => it.name))
+        setRemotePhotos((prev) => {
+          const prevNames = new Set(prev.map((p) => p.name))
+          const added = (json.items || [])
+            .filter((it: any) => !prevNames.has(it.name))
+            .map((it: any) => ({
+              name: it.name,
+              url: `/api/minio/proxy?key=event/${it.name}`,
+              thumb: `/api/minio/proxy?key=event/${it.name}`,
+            }))
+          const kept = prev.filter((p) => currentNames.has(p.name))
+          return added.length ? [...added, ...kept] : kept
+        })
+      } catch {
+        // ignore
+      }
+    }
+    timer = setInterval(refresh, 7000)
+    const onVis = () => !document.hidden && refresh()
+    document.addEventListener("visibilitychange", onVis)
+    return () => {
+      cancelled = true
+      if (timer) clearInterval(timer)
+      document.removeEventListener("visibilitychange", onVis)
+    }
+  }, [])
+
   // Realtime (Socket.IO) si configuré
   useEffect(() => {
     // Ajout incrémental quand une nouvelle photo arrive
