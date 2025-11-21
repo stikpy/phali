@@ -4,6 +4,7 @@ import type React from "react"
 
 import { useEffect, useRef, useState } from "react"
 import { createClient } from "@/utils/client"
+import { usePhotoRealtime } from "@/hooks/usePhotoRealtime"
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
 
 type RemotePhoto = {
@@ -26,6 +27,7 @@ export default function PhotoGallery({ photos, onUpload, limit, showUpload = tru
   const [remotePhotos, setRemotePhotos] = useState<RemotePhoto[]>([])
   const [uploadBlocked, setUploadBlocked] = useState(false)
   const supabase = createClient()
+  const realtime = usePhotoRealtime()
 
   useEffect(() => {
     // flags
@@ -50,6 +52,17 @@ export default function PhotoGallery({ photos, onUpload, limit, showUpload = tru
     fetchPhotos()
   }, [])
 
+  // Realtime (Socket.IO) si configuré
+  useEffect(() => {
+    if (!realtime?.photos?.length) return
+    const items: RemotePhoto[] = realtime.photos.map((p: any) => ({
+      name: p.name,
+      url: p.url?.startsWith("http") ? `/api/minio/proxy?key=event/${p.name}` : `/api/minio/proxy?key=event/${p.name}`,
+      thumb: `/api/minio/proxy?key=event/${p.name}`,
+    }))
+    setRemotePhotos(items)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [realtime.photos])
   // Realtime: écoute INSERT/DELETE sur storage.objects (bucket photos)
   useEffect(() => {
     const ch = supabase
