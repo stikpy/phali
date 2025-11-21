@@ -3,6 +3,7 @@
 import { NextResponse } from "next/server"
 import { PutObjectCommand } from "@aws-sdk/client-s3"
 import { getMinioClient, getMinioPublicUrl } from "@/utils/minio"
+import { io } from "socket.io-client"
 
 export async function POST(req: Request) {
   try {
@@ -16,7 +17,24 @@ export async function POST(req: Request) {
     const Body = Buffer.from(await file.arrayBuffer())
     const ContentType = file.type || "application/octet-stream"
     await s3.send(new PutObjectCommand({ Bucket, Key: key, Body, ContentType, ACL: "public-read" as any }))
-    return NextResponse.json({ success: true, key, url: getMinioPublicUrl(key) })
+    const url = getMinioPublicUrl(key)
+    // Broadcast realtime (Socket.IO) si configuré
+    try {
+      const serverUrl = process.env.NEXT_PUBLIC_REALTIME_SERVER_URL || process.env.REALTIME_SERVER_URL
+      if (serverUrl) {
+        const socket = io(serverUrl, { transports: ["websocket"], forceNew: true })
+        await new Promise<void>((resolve) => socket.on("connect", () => resolve()))
+        socket.emit("photo-uploaded", {
+          name: key.replace(/^event\//, ""),
+          url,
+          size: Body.length,
+          contentType: ContentType,
+          lastModified: new Date().toISOString(),
+        })
+        socket.close()
+      }
+    } catch {}
+    return NextResponse.json({ success: true, key, url })
   } catch (e: any) {
     return NextResponse.json({ success: false, error: e?.message || "minio upload failed" }, { status: 200 })
   }

@@ -54,15 +54,22 @@ export default function PhotoGallery({ photos, onUpload, limit, showUpload = tru
 
   // Realtime (Socket.IO) si configuré
   useEffect(() => {
-    if (!realtime?.photos?.length) return
-    const items: RemotePhoto[] = realtime.photos.map((p: any) => ({
-      name: p.name,
-      url: p.url?.startsWith("http") ? `/api/minio/proxy?key=event/${p.name}` : `/api/minio/proxy?key=event/${p.name}`,
-      thumb: `/api/minio/proxy?key=event/${p.name}`,
-    }))
-    setRemotePhotos(items)
+    // Ajout incrémental quand une nouvelle photo arrive
+    if (realtime?.newPhotos && realtime.newPhotos.length > 0) {
+      const added = realtime.newPhotos.map((p: any) => ({
+        name: p.name,
+        url: `/api/minio/proxy?key=event/${p.name}`,
+        thumb: `/api/minio/proxy?key=event/${p.name}`,
+      }))
+      setRemotePhotos((prev) => {
+        const seen = new Set(prev.map((x) => x.name))
+        const merged = [...added.filter((a) => !seen.has(a.name)), ...prev]
+        return merged
+      })
+      realtime.clearNewPhotos?.()
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [realtime.photos])
+  }, [realtime.newPhotos])
   // Realtime: écoute INSERT/DELETE sur storage.objects (bucket photos)
   useEffect(() => {
     const ch = supabase
