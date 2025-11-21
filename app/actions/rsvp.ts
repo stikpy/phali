@@ -7,6 +7,7 @@ type RsvpPayload = {
   email: string
   guests: number
   message: string | null
+  phone: string | null
   status: "present" | "absent" | "unsure"
   avatarUrl: string | null
   reminderOptIn?: boolean
@@ -23,6 +24,7 @@ export async function submitRsvp(payload: RsvpPayload) {
         email: payload.email,
         guests: payload.guests,
         message: payload.message,
+        phone: payload.phone,
         status: payload.status,
         avatar_url: payload.avatarUrl,
         reminder_opt_in: !!payload.reminderOptIn,

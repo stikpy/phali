@@ -158,6 +158,19 @@ export default function RSVPForm() {
                   />
                 </div>
 
+                {/* Phone */}
+                <div>
+                  <label className="block text-xs font-black text-primary mb-2 uppercase">Téléphone</label>
+                  <input
+                    type="tel"
+                    name="phone"
+                    value={(formData as any).phone || ""}
+                    onChange={handleChange}
+                    className="w-full px-3 py-2 border border-white/20 bg-background/60 text-foreground font-mono text-sm focus:outline-none focus:ring-2 focus:ring-[var(--neon-3)]"
+                    placeholder="+33 6 12 34 56 78"
+                  />
+                </div>
+
                 {/* Guests */}
                 <div>
                   <label className="block text-xs font-black text-primary mb-2 uppercase">Invités *</label>

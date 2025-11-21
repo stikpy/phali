@@ -4,7 +4,7 @@ import type React from "react"
 
 import { useEffect, useRef, useState } from "react"
 import { createClient } from "@/utils/client"
-import { Dialog, DialogContent } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
 
 type RemotePhoto = {
   name: string
@@ -35,42 +35,12 @@ export default function PhotoGallery({ photos, onUpload, limit, showUpload = tru
       .catch(() => {})
     const fetchPhotos = async () => {
       try {
-        // Liste d'abord les fichiers dans le dossier "event"
-        const { data, error } = await supabase.storage.from("photos").list("event", {
-          limit: 1000,
-          sortBy: { column: "created_at", order: "desc" },
-        })
-        if (error) {
-          // fallback: tenter la racine si le dossier n'existe pas encore
-          const fallback = await supabase.storage.from("photos").list(undefined, {
-            limit: 1000,
-            sortBy: { column: "created_at", order: "desc" },
-          })
-          if (fallback.error) return
-          const fallbackUrls: RemotePhoto[] =
-            (fallback.data as any)?.flatMap((obj: any) => {
-              // ignore les "dossiers" pour éviter 404
-              if (obj.id === undefined && obj.metadata === null) return []
-              const url = supabase.storage.from("photos").getPublicUrl(obj.name).data.publicUrl
-              const thumb =
-                supabase.storage
-                  .from("photos")
-                  .getPublicUrl(obj.name, { transform: { width: 480, quality: 70 } }).data.publicUrl
-              return [{ name: obj.name, url, thumb }]
-            }) ?? []
-          setRemotePhotos(fallbackUrls)
-          return
+        const r = await fetch("/api/minio/list")
+        const json = await r.json()
+        if (json?.items) {
+          const items: RemotePhoto[] = json.items.map((it: any) => ({ name: it.name, url: it.url, thumb: it.url }))
+          setRemotePhotos(items)
         }
-        const urls: RemotePhoto[] =
-          data?.map((obj) => {
-            const full = supabase.storage.from("photos").getPublicUrl(`event/${obj.name}`).data.publicUrl
-            const thumb =
-              supabase.storage
-                .from("photos")
-                .getPublicUrl(`event/${obj.name}`, { transform: { width: 640, quality: 70 } }).data.publicUrl
-            return { name: obj.name, url: full, thumb }
-          }) ?? []
-        setRemotePhotos(urls)
       } catch {}
     }
     fetchPhotos()
@@ -115,19 +85,16 @@ export default function PhotoGallery({ photos, onUpload, limit, showUpload = tru
   const uploadFiles = async (files: FileList) => {
     const uploaded: RemotePhoto[] = []
     for (const file of Array.from(files)) {
-      const ext = file.name.split(".").pop() || "png"
-      const path = `event/${crypto.randomUUID()}.${ext}`
-      const { error: upErr } = await supabase.storage.from("photos").upload(path, file, { upsert: false })
-      if (upErr) continue
-      const { data } = supabase.storage.from("photos").getPublicUrl(path)
-      const thumb = supabase.storage.from("photos").getPublicUrl(path, { transform: { width: 640, quality: 70 } }).data
-        .publicUrl
-      const cleanName = path.startsWith("event/") ? path.slice("event/".length) : path
-      uploaded.push({ name: cleanName, url: data.publicUrl, thumb })
+      const fd = new FormData()
+      fd.append("file", file)
+      const r = await fetch("/api/minio/upload", { method: "POST", body: fd })
+      const json = await r.json()
+      if (json?.success) {
+        uploaded.push({ name: (json.key as string).replace(/^event\//, ""), url: json.url as string, thumb: json.url as string })
+      }
     }
     if (uploaded.length) {
       setRemotePhotos((prev) => [...uploaded, ...prev])
-      // Note: on ne met plus à jour le parent via onUpload pour éviter les doublons
     }
   }
 
@@ -261,33 +228,14 @@ export default function PhotoGallery({ photos, onUpload, limit, showUpload = tru
                   ? "col-span-2 row-span-2"
                   : `${p.col >= 2 ? "col-span-2" : "col-span-1"} ${p.row >= 2 ? "row-span-2" : "row-span-1"}`
               const tileSpan = `${mobileSpan} ${desktopSpan}`
-              // Image transform approximative pour coller à la tuile
-              const base = 170 // base px approx pour une colonne/ligne (dezoom)
-              const w = Math.min(1200, base * p.col)
-              const h = Math.min(1200, base * p.row)
-              const transformed = supabase.storage
-                .from("photos")
-                .getPublicUrl(`event/${item.name}`, { transform: { width: w, height: h, resize: "cover", quality: 70 } })
-                .data.publicUrl
               return (
                 <div
                   key={`${photo}-${index}`}
                   className={`relative group overflow-hidden rounded-xl border border-white/10 ${tileSpan} transition-transform hover:scale-[1.01] cursor-pointer shadow-[0_4px_24px_rgba(0,0,0,0.35)]`}
                   onClick={() => setSelectedPhoto(photo)}
                 >
-                  {/* Fond de remplissage flou pour éviter toute bande */}
-                  <img
-                    src={transformed || photo || "/placeholder.svg"}
-                    alt=""
-                    aria-hidden="true"
-                    className="absolute inset-0 w-full h-full object-cover blur-[3px] scale-105 opacity-60"
-                  />
-                  {/* Image principale en contain pour voir la photo entière */}
-                  <img
-                    src={transformed || photo || "/placeholder.svg"}
-                    alt={`Photo ${index + 1}`}
-                    className="relative z-10 block w-full h-full object-contain"
-                  />
+                  {/* Vignette MinIO: object-cover simple */}
+                  <img src={photo || "/placeholder.svg"} alt={`Photo ${index + 1}`} className="block w-full h-full object-cover" loading="lazy" />
                   <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
                   <div className="absolute top-2 right-2 z-20 flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                     <div className="flex items-center gap-2">
@@ -328,6 +276,7 @@ export default function PhotoGallery({ photos, onUpload, limit, showUpload = tru
         <Dialog open={!!selectedPhoto} onOpenChange={(o) => !o && setSelectedPhoto(null)}>
           <DialogContent className="bg-transparent border-0 p-0 w-auto max-w-md sm:max-w-lg" showCloseButton>
             <div className="relative">
+              <DialogTitle className="sr-only">Aperçu photo</DialogTitle>
               <img
                 src={selectedPhoto || "/placeholder.svg"}
                 alt="Full size"

@@ -9,6 +9,7 @@ type RsvpRow = {
   created_at: string
   name: string
   email: string
+  phone?: string | null
   guests: number
   status: "present" | "unsure" | "absent"
   avatar_url: string | null
@@ -75,11 +76,12 @@ export default function AdminDashboard() {
       .subscribe()
     // Photos
     ;(async () => {
-      const { data } = await supabase.storage.from("photos").list("event", {
-        limit: 1000,
-        sortBy: { column: "created_at", order: "desc" },
-      })
-      setPhotos((data as PhotoObj[]) || [])
+      try {
+        const r = await fetch("/api/minio/list")
+        const json = await r.json()
+        const items = (json.items || []).map((it: any) => ({ name: it.name }))
+        setPhotos(items)
+      } catch {}
     })()
     // Load flags
     ;(async () => {
@@ -227,6 +229,7 @@ export default function AdminDashboard() {
                         <th className="px-4 py-3 uppercase tracking-[0.3em] text-xs">Date</th>
                         <th className="px-4 py-3 uppercase tracking-[0.3em] text-xs">Nom</th>
                         <th className="px-4 py-3 uppercase tracking-[0.3em] text-xs">Email</th>
+                        <th className="px-4 py-3 uppercase tracking-[0.3em] text-xs">Téléphone</th>
                         <th className="px-4 py-3 uppercase tracking-[0.3em] text-xs">Invités</th>
                         <th className="px-4 py-3 uppercase tracking-[0.3em] text-xs">Statut</th>
                         <th className="px-4 py-3 uppercase tracking-[0.3em] text-xs">Message</th>
@@ -240,6 +243,7 @@ export default function AdminDashboard() {
                           </td>
                           <td className="px-4 py-3 text-xs">{row.name}</td>
                           <td className="px-4 py-3 text-xs text-foreground/70">{row.email}</td>
+                          <td className="px-4 py-3 text-xs text-foreground/70">{row.phone || "-"}</td>
                           <td className="px-4 py-3 text-xs">{row.guests}</td>
                           <td className="px-4 py-3 text-xs">{row.status}</td>
                           <td className="px-4 py-3 text-xs text-foreground/60">{row.message || "-"}</td>
@@ -326,11 +330,7 @@ export default function AdminDashboard() {
                       const base = 160
                       const w = Math.min(1200, base * s.col)
                       const h = Math.min(1200, base * s.row)
-                      const thumb = supabase.storage
-                        .from("photos")
-                        .getPublicUrl(`event/${p.name}`, {
-                          transform: { width: w, height: h, resize: "cover", quality: 65 },
-                        }).data.publicUrl
+                      const thumb = `/api/minio/list` ? (process.env.MINIO_ENDPOINT ? `${process.env.MINIO_ENDPOINT.replace(/\/$/,"")}/${process.env.MINIO_BUCKET_NAME}/event/${p.name}` : url) : url
                       return (
                         <div
                           key={`${p.name}-${i}`}
@@ -350,10 +350,10 @@ export default function AdminDashboard() {
                             <button
                               className="skylog-button bg-accent text-foreground text-xs"
                               onClick={async () => {
-                                await fetch("/api/admin/photos/delete", {
+                                await fetch("/api/minio/remove", {
                                   method: "POST",
                                   headers: { "Content-Type": "application/json" },
-                                  body: JSON.stringify({ path: `event/${p.name}` }),
+                                  body: JSON.stringify({ key: `event/${p.name}` }),
                                 })
                                 setPhotos((prev) => prev.filter((x) => x.name !== p.name))
                               }}

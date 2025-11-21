@@ -11,6 +11,7 @@ const links = [
   { href: "/artistes", label: "Artistes" },
   { href: "/infos", label: "Infos pratiques" },
   { href: "/photos", label: "Galerie" },
+  { href: "/reliques", label: "Reliques" },
 ]
 
 export default function SiteHeader() {
