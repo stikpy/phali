@@ -330,7 +330,7 @@ export default function AdminDashboard() {
                       const base = 160
                       const w = Math.min(1200, base * s.col)
                       const h = Math.min(1200, base * s.row)
-                      const thumb = `/api/minio/list` ? (process.env.MINIO_ENDPOINT ? `${process.env.MINIO_ENDPOINT.replace(/\/$/,"")}/${process.env.MINIO_BUCKET_NAME}/event/${p.name}` : url) : url
+                      const thumb = `/api/minio/proxy?key=event/${p.name}`
                       return (
                         <div
                           key={`${p.name}-${i}`}

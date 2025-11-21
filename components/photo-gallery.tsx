@@ -38,7 +38,11 @@ export default function PhotoGallery({ photos, onUpload, limit, showUpload = tru
         const r = await fetch("/api/minio/list")
         const json = await r.json()
         if (json?.items) {
-          const items: RemotePhoto[] = json.items.map((it: any) => ({ name: it.name, url: it.url, thumb: it.url }))
+          const items: RemotePhoto[] = json.items.map((it: any) => ({
+            name: it.name,
+            url: `/api/minio/proxy?key=event/${it.name}`,
+            thumb: `/api/minio/proxy?key=event/${it.name}`,
+          }))
           setRemotePhotos(items)
         }
       } catch {}
@@ -90,7 +94,9 @@ export default function PhotoGallery({ photos, onUpload, limit, showUpload = tru
       const r = await fetch("/api/minio/upload", { method: "POST", body: fd })
       const json = await r.json()
       if (json?.success) {
-        uploaded.push({ name: (json.key as string).replace(/^event\//, ""), url: json.url as string, thumb: json.url as string })
+        const name = (json.key as string).replace(/^event\//, "")
+        const proxied = `/api/minio/proxy?key=event/${name}`
+        uploaded.push({ name, url: proxied, thumb: proxied })
       }
     }
     if (uploaded.length) {
