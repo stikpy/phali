@@ -90,48 +90,32 @@ export default function MSNChat() {
       sessionIdRef.current = crypto.randomUUID()
     }
 
-    // load history + subscribe realtime
+    // load history + (legacy) subscribe realtime
     if (!subscribedRef.current) {
       subscribedRef.current = true
       const load = async () => {
-        const { data } = await supabase
-          .from("chat_messages")
-          .select("*")
-          .order("created_at", { ascending: true })
-          .limit(50)
-        if (data) {
-          const mapped = data.map((d: any) => ({
-            id: d.id as string,
-            from: d.author as string,
-            text: d.message as string,
-            at: new Date(d.created_at as string).getTime(),
+        try {
+          const r = await fetch("/api/chat/list", { cache: "no-store" })
+          const j = await r.json()
+          const data = (j?.messages || []) as Array<{
+            id: string
+            author: string
+            message: string
+            created_at: string
+          }>
+          const mapped = data.map((d) => ({
+            id: d.id,
+            from: d.author,
+            text: d.message,
+            at: new Date(d.created_at).getTime(),
           }))
           setMessages(mapped)
           mapped.forEach((m) => seenIdsRef.current.add(m.id))
-        }
+        } catch {}
       }
       load()
-      const channel = supabase
-        .channel("chat-messages")
-        .on(
-          "postgres_changes",
-          { event: "INSERT", schema: "public", table: "chat_messages" },
-          (payload) => {
-            const id = (payload.new as any).id as string
-            if (seenIdsRef.current.has(id)) return
-            seenIdsRef.current.add(id)
-            setMessages((prev) => [
-              ...prev,
-              {
-                id,
-                from: (payload.new as any).author as string,
-                text: (payload.new as any).message as string,
-                at: new Date((payload.new as any).created_at as string).getTime(),
-              },
-            ])
-          },
-        )
-        .subscribe()
+      // Tant que le realtime n'est pas migré, petit polling pour nouveaux messages
+      const poll = setInterval(load, 5000)
       // Presence realtime pour compteur "en ligne"
       const pres = supabase.channel("chat-presence", { config: { presence: { key: sessionIdRef.current } } })
       pres
@@ -150,7 +134,7 @@ export default function MSNChat() {
         })
       presenceRef.current = pres
       return () => {
-        supabase.removeChannel(channel)
+        clearInterval(poll)
         if (presenceRef.current) supabase.removeChannel(presenceRef.current)
         subscribedRef.current = false
       }

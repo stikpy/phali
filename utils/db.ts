@@ -1,5 +1,3 @@
-"use server"
-
 import { Pool } from "pg"
 
 let pool: Pool | null = null
