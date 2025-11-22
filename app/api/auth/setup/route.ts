@@ -15,14 +15,20 @@ export async function POST() {
         phone_number text unique,
         phone_number_verified boolean not null default false,
         email_verified boolean not null default false,
+        "emailVerified" boolean not null default false,
         image text,
         created_at timestamptz not null default now(),
-        updated_at timestamptz not null default now()
+        updated_at timestamptz not null default now(),
+        "createdAt" timestamptz not null default now(),
+        "updatedAt" timestamptz not null default now()
       )
     `)
     // S'assure des colonnes phone_number*
     await pgQuery(`alter table "user" add column if not exists phone_number text`)
     await pgQuery(`alter table "user" add column if not exists phone_number_verified boolean not null default false`)
+    await pgQuery(`alter table "user" add column if not exists "emailVerified" boolean not null default false`)
+    await pgQuery(`alter table "user" add column if not exists "createdAt" timestamptz not null default now()`)
+    await pgQuery(`alter table "user" add column if not exists "updatedAt" timestamptz not null default now()`)
 
     // session table
     await pgQuery(`
@@ -34,10 +40,15 @@ export async function POST() {
         user_agent text,
         created_at timestamptz not null default now(),
         updated_at timestamptz not null default now(),
-        user_id uuid not null references "user"(id) on delete cascade
+        user_id uuid references "user"(id) on delete cascade,
+        "userId" uuid references "user"(id) on delete cascade
       )
     `)
     await pgQuery(`create index if not exists session_user_id_idx on "session"(user_id)`)
+    await pgQuery(`alter table "session" add column if not exists "userId" uuid references "user"(id) on delete cascade`)
+    await pgQuery(`create index if not exists "session_userId_idx" on "session"("userId")`)
+    // Backfill camelCase from snake_case
+    await pgQuery(`update "session" set "userId" = user_id where "userId" is null and user_id is not null`)
 
     // account table (email/password & providers)
     await pgQuery(`
@@ -45,7 +56,8 @@ export async function POST() {
         id uuid primary key default gen_random_uuid(),
         account_id text not null,
         provider_id text not null,
-        user_id uuid not null references "user"(id) on delete cascade,
+        user_id uuid references "user"(id) on delete cascade,
+        "userId" uuid references "user"(id) on delete cascade,
         access_token text,
         refresh_token text,
         id_token text,
@@ -58,6 +70,10 @@ export async function POST() {
       )
     `)
     await pgQuery(`create index if not exists account_user_id_idx on "account"(user_id)`)
+    await pgQuery(`alter table "account" add column if not exists "userId" uuid references "user"(id) on delete cascade`)
+    await pgQuery(`create index if not exists "account_userId_idx" on "account"("userId")`)
+    // Backfill camelCase from snake_case
+    await pgQuery(`update "account" set "userId" = user_id where "userId" is null and user_id is not null`)
 
     // verification table (magic link / email verify)
     await pgQuery(`
