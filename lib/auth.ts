@@ -8,6 +8,9 @@ const prisma = new PrismaClient()
 export const auth = betterAuth({
   database: prismaAdapter(prisma, { provider: "postgresql" }),
   baseURL: process.env.NEXT_PUBLIC_SITE_URL ? `https://${process.env.NEXT_PUBLIC_SITE_URL}` : undefined,
+  emailAndPassword: {
+    enabled: true,
+  },
   // Email/password activé par défaut. On ajoute le magic link:
   plugins: [
     magicLink({

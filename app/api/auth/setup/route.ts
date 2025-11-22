@@ -85,6 +85,13 @@ export async function POST() {
           ) then
             alter table public.verification rename column "value" to token;
           end if;
+          -- Ajoute expiresAt (camelCase) attendu par certains adapters
+          if not exists (
+            select 1 from information_schema.columns
+            where table_schema = 'public' and table_name = 'verification' and column_name = 'expiresAt'
+          ) then
+            alter table public.verification add column "expiresAt" timestamptz;
+          end if;
         end
         $$;
       `)

@@ -7,7 +7,8 @@ import { pgQuery } from "@/utils/db"
 
 export async function GET() {
   try {
-    const token = cookies().get(cookieName())?.value
+    const jar = await cookies()
+    const token = jar.get(cookieName())?.value
     const session = verifySession(token)
     if (!session) return NextResponse.json({ authenticated: false })
     const { rows } = await pgQuery<{ id: string; email: string; name: string | null }>(
