@@ -1,4 +1,4 @@
-"use server"
+      "use server"
 
 import { NextResponse } from "next/server"
 import { GetObjectCommand } from "@aws-sdk/client-s3"
@@ -36,5 +36,6 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: e?.message || "minio proxy failed" }, { status: 200 })
   }
 }
+
 
 

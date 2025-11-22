@@ -15,6 +15,11 @@ type RsvpPayload = {
 
 export async function submitRsvp(payload: RsvpPayload) {
   try {
+    // S'assure que la colonne phone existe (migration souple)
+    await pgQuery(
+      `alter table if exists public.rsvp_responses
+       add column if not exists phone text`,
+    )
     await pgQuery(
       `insert into public.rsvp_responses
        (name, email, guests, message, phone, status, avatar_url, reminder_opt_in)
