@@ -1,8 +1,6 @@
 "use server"
 
 import { pgQuery } from "@/utils/db"
-import { cookies } from "next/headers"
-import { cookieName, signSession } from "@/utils/auth"
 
 type RsvpPayload = {
   name: string
@@ -40,37 +38,19 @@ export async function submitRsvp(payload: RsvpPayload) {
         !!payload.reminderOptIn,
       ],
     )
-    // Création utilisateur minimaliste si absent (table app_users)
-    await pgQuery(
-      `create table if not exists public.app_users (
-        id uuid primary key default gen_random_uuid(),
-        email text unique not null,
-        name text,
-        phone text,
-        avatar_url text,
-        created_at timestamp with time zone default now()
-      )`,
-    )
-    const { rows } = await pgQuery<{ id: string }>(
-      `insert into public.app_users (email, name, phone, avatar_url)
-       values ($1,$2,$3,$4)
-       on conflict (email) do update set
-         name = excluded.name,
-         phone = excluded.phone,
-         avatar_url = excluded.avatar_url
-       returning id`,
-      [payload.email, payload.name, payload.phone, payload.avatarUrl],
-    )
-    const userId = rows?.[0]?.id
-    if (userId) {
-      const token = signSession({ userId, name: payload.name, email: payload.email })
-      cookies().set(cookieName(), token, {
-        httpOnly: true,
-        sameSite: "lax",
-        secure: true,
-        path: "/",
-        maxAge: 60 * 60 * 24 * 60, // 60 jours
-      })
+    // Si la personne est "présente", envoyer un magic link Better Auth pour créer la session facilement.
+    if (payload.status === "present" && payload.email) {
+      try {
+        await fetch(`${process.env.NEXT_PUBLIC_SITE_URL ? "https://" + process.env.NEXT_PUBLIC_SITE_URL : ""}/api/auth/sign-in/magic-link`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            email: payload.email,
+            name: payload.name,
+            callbackURL: "/",
+          }),
+        })
+      } catch {}
     }
     return { success: true }
   } catch (e: any) {
