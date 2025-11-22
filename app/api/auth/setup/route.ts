@@ -54,8 +54,8 @@ export async function POST() {
     await pgQuery(`
       create table if not exists "account" (
         id uuid primary key default gen_random_uuid(),
-        account_id text not null,
-        provider_id text not null,
+        account_id text,
+        provider_id text,
         user_id uuid references "user"(id) on delete cascade,
         "userId" uuid references "user"(id) on delete cascade,
         access_token text,
@@ -74,6 +74,9 @@ export async function POST() {
     await pgQuery(`create index if not exists "account_userId_idx" on "account"("userId")`)
     // Backfill camelCase from snake_case
     await pgQuery(`update "account" set "userId" = user_id where "userId" is null and user_id is not null`)
+    // Assouplir contraintes héritées (account_id/provider_id peuvent être NULL pour 'credential')
+    await pgQuery(`alter table if exists "account" alter column account_id drop not null`)
+    await pgQuery(`alter table if exists "account" alter column provider_id drop not null`)
 
     // verification table (magic link / email verify)
     await pgQuery(`
