@@ -1,13 +1,12 @@
 import { betterAuth } from "better-auth"
 import { magicLink } from "better-auth/plugins"
-import { Pool } from "pg"
+import { prismaAdapter } from "better-auth/adapters/prisma"
+import { PrismaClient } from "@/lib/generated/prisma"
 
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-})
+const prisma = new PrismaClient()
 
 export const auth = betterAuth({
-  database: pool,
+  database: prismaAdapter(prisma, { provider: "postgresql" }),
   baseURL: process.env.NEXT_PUBLIC_SITE_URL ? `https://${process.env.NEXT_PUBLIC_SITE_URL}` : undefined,
   // Email/password activé par défaut. On ajoute le magic link:
   plugins: [
@@ -27,6 +26,7 @@ export const auth = betterAuth({
       // accessType: "offline",
     },
   },
+  experimental: { joins: true },
 })
 
 
