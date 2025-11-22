@@ -121,6 +121,72 @@ export async function POST() {
       `)
     } catch {}
 
+    // Harmonisation des types Better Auth → utiliser des ids en text (évite erreurs uuid)
+    try {
+      // 1) Supprimer FKs qui bloquent les changements de types
+      await pgQuery(`
+        do $$
+        declare
+          r record;
+        begin
+          for r in
+            select tc.constraint_name, tc.table_schema, tc.table_name
+            from information_schema.table_constraints tc
+            join information_schema.key_column_usage kcu
+              on tc.constraint_name = kcu.constraint_name
+            join information_schema.constraint_column_usage ccu
+              on ccu.constraint_name = tc.constraint_name
+            where tc.constraint_type = 'FOREIGN KEY'
+              and ccu.table_name = 'user'
+              and tc.table_name in ('session','account')
+          loop
+            execute format('alter table %I.%I drop constraint if exists %I', r.table_schema, r.table_name, r.constraint_name);
+          end loop;
+        end $$;
+      `)
+      // 2) Convertir les PK en text
+      await pgQuery(`alter table if exists "user" alter column id drop default`)
+      await pgQuery(`alter table if exists "user" alter column id type text using id::text`)
+      await pgQuery(`alter table if exists "session" alter column id drop default`)
+      await pgQuery(`alter table if exists "session" alter column id type text using id::text`)
+      await pgQuery(`alter table if exists "account" alter column id drop default`)
+      await pgQuery(`alter table if exists "account" alter column id type text using id::text`)
+      await pgQuery(`alter table if exists "verification" alter column id drop default`)
+      await pgQuery(`alter table if exists "verification" alter column id type text using id::text`)
+      // 3) Convertir les colonnes de liaison en text
+      await pgQuery(`alter table if exists "session" alter column user_id type text using user_id::text`)
+      await pgQuery(`alter table if exists "session" alter column "userId" type text using "userId"::text`)
+      await pgQuery(`alter table if exists "account" alter column user_id type text using user_id::text`)
+      await pgQuery(`alter table if exists "account" alter column "userId" type text using "userId"::text`)
+      // 4) (Optionnel) recréer des index
+      await pgQuery(`create index if not exists session_user_id_text_idx on "session"(user_id)`)
+      await pgQuery(`create index if not exists account_user_id_text_idx on "account"(user_id)`)
+    } catch {}
+
+    // Colonnes camelCase attendues par Better Auth sur account
+    try {
+      await pgQuery(`alter table if exists "account" add column if not exists "accountId" text`)
+      await pgQuery(`alter table if exists "account" add column if not exists "providerId" text`)
+      await pgQuery(`alter table if exists "account" add column if not exists "createdAt" timestamptz not null default now()`)
+      await pgQuery(`alter table if exists "account" add column if not exists "updatedAt" timestamptz not null default now()`)
+      await pgQuery(`alter table if exists "account" add column if not exists "accessToken" text`)
+      await pgQuery(`alter table if exists "account" add column if not exists "refreshToken" text`)
+      await pgQuery(`alter table if exists "account" add column if not exists "idToken" text`)
+      await pgQuery(`alter table if exists "account" add column if not exists "accessTokenExpiresAt" timestamptz`)
+      await pgQuery(`alter table if exists "account" add column if not exists "refreshTokenExpiresAt" timestamptz`)
+      await pgQuery(`alter table if exists "account" add column if not exists "scope" text`)
+      await pgQuery(`update "account" set "accountId" = account_id where "accountId" is null and account_id is not null`)
+      await pgQuery(`update "account" set "providerId" = provider_id where "providerId" is null and provider_id is not null`)
+      await pgQuery(`update "account" set "createdAt" = created_at where created_at is not null`)
+      await pgQuery(`update "account" set "updatedAt" = updated_at where updated_at is not null`)
+      await pgQuery(`update "account" set "accessToken" = access_token where access_token is not null`)
+      await pgQuery(`update "account" set "refreshToken" = refresh_token where refresh_token is not null`)
+      await pgQuery(`update "account" set "idToken" = id_token where id_token is not null`)
+      await pgQuery(`update "account" set "accessTokenExpiresAt" = access_token_expires_at where access_token_expires_at is not null`)
+      await pgQuery(`update "account" set "refreshTokenExpiresAt" = refresh_token_expires_at where refresh_token_expires_at is not null`)
+      await pgQuery(`update "account" set "scope" = scope where scope is not null`)
+    } catch {}
+
     return NextResponse.json({ ok: true })
   } catch (e: any) {
     return NextResponse.json({ ok: false, error: e?.message || "unknown" }, { status: 500 })
