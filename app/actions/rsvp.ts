@@ -15,10 +15,21 @@ type RsvpPayload = {
 
 export async function submitRsvp(payload: RsvpPayload) {
   try {
+    // Extension pour UUID si absente
+    await pgQuery(`create extension if not exists pgcrypto`)
     // S'assure que la colonne phone existe (migration souple)
     await pgQuery(
       `alter table if exists public.rsvp_responses
        add column if not exists phone text`,
+    )
+    // S'assure que la colonne id existe et possède un default UUID
+    await pgQuery(
+      `alter table if exists public.rsvp_responses
+       add column if not exists id uuid primary key default gen_random_uuid()`,
+    )
+    await pgQuery(
+      `alter table if exists public.rsvp_responses
+       alter column id set default gen_random_uuid()`,
     )
     // S'assure qu'il existe une contrainte/index unique sur email (requis par ON CONFLICT(email))
     await pgQuery(
