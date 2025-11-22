@@ -12,12 +12,17 @@ export async function POST() {
         id uuid primary key default gen_random_uuid(),
         name text,
         email text not null unique,
+        phone_number text unique,
+        phone_number_verified boolean not null default false,
         email_verified boolean not null default false,
         image text,
         created_at timestamptz not null default now(),
         updated_at timestamptz not null default now()
       )
     `)
+    // S'assure des colonnes phone_number*
+    await pgQuery(`alter table "user" add column if not exists phone_number text`)
+    await pgQuery(`alter table "user" add column if not exists phone_number_verified boolean not null default false`)
 
     // session table
     await pgQuery(`

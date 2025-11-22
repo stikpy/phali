@@ -13,6 +13,8 @@ export default function LoginButton() {
   const [identifier, setIdentifier] = useState("")
   const [password, setPassword] = useState("")
   const [fullName, setFullName] = useState("")
+  const [phoneMode, setPhoneMode] = useState(false)
+  const [otp, setOtp] = useState("")
   const [message, setMessage] = useState<string | null>(null)
   const router = useRouter()
 
@@ -27,8 +29,18 @@ export default function LoginButton() {
     setLoading(true)
     setMessage(null)
     try {
+      if (phoneMode) {
+        const { error } = await authClient.signIn.phoneNumber({ phoneNumber: identifier, password })
+        if (error) setMessage(error.message || "Connexion échouée")
+        else {
+          setOpen(false)
+          setAuthenticated(true)
+          router.refresh()
+        }
+        return
+      }
       if (!identifier || !identifier.includes("@")) {
-        setMessage("Utilise ton email (la connexion par téléphone n’est pas encore activée).")
+        setMessage("Utilise un email valide.")
         return
       }
       const { error } = await authClient.signIn.email({ email: identifier, password })
@@ -50,6 +62,12 @@ export default function LoginButton() {
     setLoading(true)
     setMessage(null)
     try {
+      if (phoneMode) {
+        const { error } = await authClient.phoneNumber.sendOtp({ phoneNumber: identifier })
+        if (error) setMessage(error.message || "Impossible d'envoyer le code")
+        else setMessage("Code OTP envoyé (voir console serveur en dev)")
+        return
+      }
       if (!identifier || !identifier.includes("@")) {
         setMessage("Entre un email valide pour recevoir le lien magique.")
         return
@@ -57,6 +75,27 @@ export default function LoginButton() {
       const { error } = await authClient.signIn.magicLink({ email: identifier })
       if (error) setMessage(error.message || "Impossible d'envoyer le lien")
       else setMessage("Lien magique envoyé (voir console si SMTP non configuré)")
+    } catch (e: any) {
+      setMessage(e?.message || "Erreur inconnue")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const verifyOtp = async () => {
+    setLoading(true)
+    setMessage(null)
+    try {
+      const { error } = await authClient.phoneNumber.verify({
+        phoneNumber: identifier,
+        code: otp,
+      })
+      if (error) setMessage(error.message || "Code invalide")
+      else {
+        setOpen(false)
+        setAuthenticated(true)
+        router.refresh()
+      }
     } catch (e: any) {
       setMessage(e?.message || "Erreur inconnue")
     } finally {
@@ -142,7 +181,7 @@ export default function LoginButton() {
             )}
             <input
               className="w-full px-3 py-2 border border-white/20 bg-background/70 text-sm"
-              placeholder="Email"
+              placeholder={phoneMode ? "Téléphone (ex: +336...) " : "Email"}
               value={identifier}
               onChange={(e) => setIdentifier(e.target.value)}
             />
@@ -153,6 +192,19 @@ export default function LoginButton() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
             />
+            {phoneMode && (
+              <div className="flex items-center gap-2">
+                <input
+                  className="w-full px-3 py-2 border border-white/20 bg-background/70 text-sm"
+                  placeholder="Code OTP"
+                  value={otp}
+                  onChange={(e) => setOtp(e.target.value)}
+                />
+                <button className="skylog-button px-3 py-2" type="button" onClick={verifyOtp} disabled={loading || !otp}>
+                  Vérifier
+                </button>
+              </div>
+            )}
             {message && <div className="text-xs text-red-400 font-mono">{message}</div>}
             <div className="flex items-center gap-2">
               {mode === "login" ? (
@@ -161,7 +213,7 @@ export default function LoginButton() {
                     Connexion
                   </button>
                   <button className="skylog-button bg-secondary px-4 py-2 disabled:opacity-60" onClick={sendMagic} disabled={loading || !identifier}>
-                    Magic link
+                    {phoneMode ? "Envoyer code" : "Magic link"}
                   </button>
                   <button className="skylog-button bg-background/60 px-4 py-2 disabled:opacity-60" onClick={doGoogle} disabled={loading}>
                     Continuer avec Google
@@ -184,7 +236,16 @@ export default function LoginButton() {
               >
                 {mode === "login" ? "Créer un compte" : "J'ai déjà un compte"}
               </button>
-              <span>Ou utilise le RSVP si tu es “Présent”.</span>
+              <button
+                type="button"
+                className="underline underline-offset-2 hover:text-foreground"
+                onClick={() => {
+                  setPhoneMode((p) => !p)
+                  setMessage(null)
+                }}
+              >
+                {phoneMode ? "Utiliser email" : "Utiliser téléphone"}
+              </button>
             </div>
           </div>
         </DialogContent>

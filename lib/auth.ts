@@ -1,5 +1,5 @@
 import { betterAuth } from "better-auth"
-import { magicLink } from "better-auth/plugins"
+import { magicLink, phoneNumber } from "better-auth/plugins"
 import { prismaAdapter } from "better-auth/adapters/prisma"
 import { PrismaClient } from "@/lib/generated/prisma"
 
@@ -14,6 +14,17 @@ export const auth = betterAuth({
       sendMagicLink: async ({ email, url }) => {
         // TODO: brancher un SMTP. En dev on log.
         console.log("[magic-link] send to", email, url)
+      },
+    }),
+    phoneNumber({
+      // En prod: brancher Twilio/SNS/etc. Ici on log l’OTP pour dev.
+      sendOTP: async ({ phoneNumber, code }) => {
+        console.log("[phone-otp] send to", phoneNumber, "code:", code)
+      },
+      // Permettre la création de compte lors d’une vérification réussie
+      signUpOnVerification: {
+        getTempEmail: (num) => `${num.replace(/[^0-9+]/g, "")}@phone.local`,
+        getTempName: (num) => num,
       },
     }),
   ],
