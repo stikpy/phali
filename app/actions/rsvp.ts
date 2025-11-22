@@ -20,6 +20,11 @@ export async function submitRsvp(payload: RsvpPayload) {
       `alter table if exists public.rsvp_responses
        add column if not exists phone text`,
     )
+    // S'assure qu'il existe une contrainte/index unique sur email (requis par ON CONFLICT(email))
+    await pgQuery(
+      `create unique index if not exists rsvp_responses_email_key
+       on public.rsvp_responses(email)`,
+    )
     await pgQuery(
       `insert into public.rsvp_responses
        (name, email, guests, message, phone, status, avatar_url, reminder_opt_in)
