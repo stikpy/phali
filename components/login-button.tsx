@@ -25,6 +25,10 @@ export default function LoginButton() {
     setLoading(true)
     setMessage(null)
     try {
+      if (!identifier || !identifier.includes("@")) {
+        setMessage("Utilise ton email (la connexion par téléphone n’est pas encore activée).")
+        return
+      }
       const { error } = await authClient.signIn.email({ email: identifier, password })
       if (error) {
         setMessage(error.message || "Connexion échouée")
@@ -44,6 +48,10 @@ export default function LoginButton() {
     setLoading(true)
     setMessage(null)
     try {
+      if (!identifier || !identifier.includes("@")) {
+        setMessage("Entre un email valide pour recevoir le lien magique.")
+        return
+      }
       const { error } = await authClient.signIn.magicLink({ email: identifier })
       if (error) setMessage(error.message || "Impossible d'envoyer le lien")
       else setMessage("Lien magique envoyé (voir console si SMTP non configuré)")
