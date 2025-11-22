@@ -27,6 +27,7 @@ export default function MSNChat() {
   const lastWizzRef = useRef<number>(0)
   const presenceRef = useRef<any>(null)
   const [onlineCount, setOnlineCount] = useState<number>(1)
+  const [authenticated, setAuthenticated] = useState<boolean>(false)
 
   useEffect(() => {
     if (!open) return
@@ -34,6 +35,12 @@ export default function MSNChat() {
   }, [open, messages])
 
   useEffect(() => {
+    // auth
+    fetch("/api/auth/me", { cache: "no-store" })
+      .then((r) => r.json())
+      .then((j) => setAuthenticated(!!j.authenticated))
+      .catch(() => setAuthenticated(false))
+
     // flags
     fetch("/api/flags")
       .then((r) => r.json())
@@ -142,7 +149,7 @@ export default function MSNChat() {
   }, [])
 
   const send = () => {
-    if (!input.trim() || chatBlocked) return
+    if (!input.trim() || chatBlocked || !authenticated) return
     const author = nick.trim() || "Anonyme"
     // persist nick into cookie and localStorage
     try {
@@ -166,7 +173,7 @@ export default function MSNChat() {
 
   const wizz = () => {
     const now = Date.now()
-    if (now - lastWizzRef.current < 8000) return
+    if (now - lastWizzRef.current < 8000 || !authenticated) return
     lastWizzRef.current = now
     void sendWizzBroadcast({ at: Date.now(), from: nick || "Anonyme" })
     void fetch("/api/wizz", { method: "POST" }).catch(() => {})
@@ -249,20 +256,28 @@ export default function MSNChat() {
               </div>
             )}
           </div>
-          <div className="px-3 pt-2 text-[11px] font-mono text-foreground/70">
-            En ligne: <span className="font-bold">{onlineCount}</span>
-          </div>
-          <div ref={containerRef} className="p-3 h-56 overflow-auto bg-background/60">
-            {messages.map((m) => (
-              <div key={m.id} className="mb-2">
-                <div className="text-xs font-bold">{m.from}</div>
-                <div className="font-mono text-sm">{renderEmotes(m.text)}</div>
-                <div className="text-[10px] font-mono text-foreground/60">
-                  {new Date(m.at).toLocaleTimeString()}
-                </div>
+          {authenticated ? (
+            <>
+              <div className="px-3 pt-2 text-[11px] font-mono text-foreground/70">
+                En ligne: <span className="font-bold">{onlineCount}</span>
               </div>
-            ))}
-          </div>
+              <div ref={containerRef} className="p-3 h-56 overflow-auto bg-background/60">
+                {messages.map((m) => (
+                  <div key={m.id} className="mb-2">
+                    <div className="text-xs font-bold">{m.from}</div>
+                    <div className="font-mono text-sm">{renderEmotes(m.text)}</div>
+                    <div className="text-[10px] font-mono text-foreground/60">
+                      {new Date(m.at).toLocaleTimeString()}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </>
+          ) : (
+            <div className="px-3 py-6 text-center text-sm font-mono text-foreground/80">
+              Connectez‑vous via le formulaire pour voir et écrire dans le chat.
+            </div>
+          )}
           <div className="p-3">
             <div className="flex flex-wrap items-center gap-2">
               <DropdownMenu.Root>
@@ -301,14 +316,16 @@ export default function MSNChat() {
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 className="flex-1 min-w-0 h-9 px-2 border border-white/20 bg-background/70 text-foreground font-mono text-sm focus:outline-none focus:ring-2 focus:ring-[var(--neon-2)] disabled:opacity-60"
-                placeholder={chatBlocked ? "Chat bloqué par l’admin" : "Tape ton message..."}
-                disabled={chatBlocked}
+                placeholder={
+                  chatBlocked ? "Chat bloqué par l’admin" : authenticated ? "Tape ton message..." : "Connecte‑toi pour écrire"
+                }
+                disabled={chatBlocked || !authenticated}
                 onKeyDown={(e) => e.key === "Enter" && send()}
               />
               <button
                 className="skylog-button bg-primary h-9 px-4 disabled:opacity-60 flex-shrink-0 whitespace-nowrap min-w-[92px] w-full sm:w-auto mt-2 sm:mt-0"
                 onClick={send}
-                disabled={chatBlocked}
+                disabled={chatBlocked || !authenticated}
               >
                 Envoyer
               </button>

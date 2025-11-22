@@ -26,6 +26,7 @@ export default function PhotoGallery({ photos, onUpload, limit, showUpload = tru
   const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null)
   const [remotePhotos, setRemotePhotos] = useState<RemotePhoto[]>([])
   const [uploadBlocked, setUploadBlocked] = useState(false)
+  const [authenticated, setAuthenticated] = useState<boolean>(false)
   const supabase = createClient()
   const realtime = usePhotoRealtime()
 
@@ -35,6 +36,11 @@ export default function PhotoGallery({ photos, onUpload, limit, showUpload = tru
       .then((r) => r.json())
       .then((j) => setUploadBlocked(!!j.uploadBlocked))
       .catch(() => {})
+    // auth
+    fetch("/api/auth/me", { cache: "no-store" })
+      .then((r) => r.json())
+      .then((j) => setAuthenticated(!!j.authenticated))
+      .catch(() => setAuthenticated(false))
     const fetchPhotos = async () => {
       try {
         const r = await fetch("/api/minio/list")
@@ -215,7 +221,18 @@ export default function PhotoGallery({ photos, onUpload, limit, showUpload = tru
         </div>
 
         {/* Upload Zone */}
-        {showUpload && uploadBlocked && (
+        {showUpload && !authenticated && (
+          <div className="skylog-widget bg-card border border-white/15 y2k-neon-border mb-6">
+            <div className="skylog-widget-header bg-gradient-to-r from-accent/80 to-primary/70">
+              <span>[ Réservé aux invités connectés ]</span>
+            </div>
+            <div className="p-4 text-center text-sm font-mono text-foreground/80">
+              Merci de remplir le formulaire d’inscription pour vous connecter et pouvoir envoyer des photos.
+            </div>
+          </div>
+        )}
+
+        {showUpload && authenticated && uploadBlocked && (
           <div className="skylog-widget bg-card border border-white/15 y2k-neon-border mb-6">
             <div className="skylog-widget-header bg-gradient-to-r from-accent/80 to-primary/70">
               <span>[ Upload temporairement désactivé ]</span>
@@ -226,7 +243,7 @@ export default function PhotoGallery({ photos, onUpload, limit, showUpload = tru
           </div>
         )}
 
-        {showUpload && !uploadBlocked && (
+        {showUpload && authenticated && !uploadBlocked && (
           <div
             onDragEnter={handleDrag}
             onDragLeave={handleDrag}
@@ -252,7 +269,8 @@ export default function PhotoGallery({ photos, onUpload, limit, showUpload = tru
         )}
 
         {/* Photos Grid (Bento) */}
-        {limitedPhotos.length > 0 ? (
+        {authenticated ? (
+          limitedPhotos.length > 0 ? (
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2 sm:gap-3 [grid-auto-rows:8.5rem] md:[grid-auto-rows:10.5rem]">
             {limitedPhotos.map((item, index) => {
               const photo = item.url
@@ -332,7 +350,14 @@ export default function PhotoGallery({ photos, onUpload, limit, showUpload = tru
               <p className="text-sm font-mono text-foreground/70">Elles apparaîtront ici après la soirée !</p>
             </div>
           </div>
-        )}
+        )) : (
+          <div className="skylog-widget bg-card border border-white/15 y2k-neon-border">
+            <div className="p-10 text-center space-y-2">
+              <p className="text-2xl font-black">ACCÈS RÉSERVÉ AUX INVITÉS</p>
+              <p className="text-sm font-mono text-foreground/70">Connectez‑vous via le formulaire pour voir la galerie.</p>
+            </div>
+          </div>
+        ) }
 
         {/* Modal d’aperçu */}
         <Dialog open={!!selectedPhoto} onOpenChange={(o) => !o && setSelectedPhoto(null)}>
