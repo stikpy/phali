@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
+import { authClient } from "@/lib/auth-client"
 
 export default function LoginButton() {
   const [open, setOpen] = useState(false)
@@ -24,14 +25,9 @@ export default function LoginButton() {
     setLoading(true)
     setMessage(null)
     try {
-      const r = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ identifier, password }),
-      })
-      const j = await r.json()
-      if (!j.success) {
-        setMessage(j.error || "Connexion échouée")
+      const { error } = await authClient.signIn.email({ email: identifier, password })
+      if (error) {
+        setMessage(error.message || "Connexion échouée")
       } else {
         setOpen(false)
         setAuthenticated(true)
@@ -48,18 +44,9 @@ export default function LoginButton() {
     setLoading(true)
     setMessage(null)
     try {
-      const r = await fetch("/api/auth/magic/request", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ identifier }),
-      })
-      const j = await r.json()
-      if (!j.success) setMessage(j.error || "Impossible d'envoyer le lien")
-      else {
-        // En dev, on ouvre directement le lien
-        if (j.link) window.location.href = j.link
-        else setMessage("Lien magique envoyé par email")
-      }
+      const { error } = await authClient.signIn.magicLink({ email: identifier })
+      if (error) setMessage(error.message || "Impossible d'envoyer le lien")
+      else setMessage("Lien magique envoyé (voir console si SMTP non configuré)")
     } catch (e: any) {
       setMessage(e?.message || "Erreur inconnue")
     } finally {
@@ -68,7 +55,7 @@ export default function LoginButton() {
   }
 
   const logout = async () => {
-    await fetch("/api/auth/logout", { method: "POST" })
+    await authClient.signOut()
     setAuthenticated(false)
     router.refresh()
   }
