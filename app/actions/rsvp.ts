@@ -66,14 +66,14 @@ export async function submitRsvp(payload: RsvpPayload) {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            email: payload.email,
+    email: payload.email,
             name: payload.name,
             callbackURL: "/",
           }),
-        })
+  })
       } catch {}
     }
-    return { success: true }
+  return { success: true }
   } catch (e: any) {
     console.error("[submitRsvp] error:", e?.message)
     return { success: false, error: e?.message || "unknown" }

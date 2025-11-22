@@ -49,6 +49,18 @@ export async function POST() {
     await pgQuery(`create index if not exists "session_userId_idx" on "session"("userId")`)
     // Backfill camelCase from snake_case
     await pgQuery(`update "session" set "userId" = user_id where "userId" is null and user_id is not null`)
+    // Colonnes camelCase attendues par Better Auth
+    await pgQuery(`alter table "session" add column if not exists "expiresAt" timestamptz`)
+    await pgQuery(`alter table "session" add column if not exists "createdAt" timestamptz not null default now()`)
+    await pgQuery(`alter table "session" add column if not exists "updatedAt" timestamptz not null default now()`)
+    await pgQuery(`update "session" set "expiresAt" = expires_at where "expiresAt" is null and expires_at is not null`)
+    await pgQuery(`update "session" set "createdAt" = created_at where created_at is not null`)
+    await pgQuery(`update "session" set "updatedAt" = updated_at where updated_at is not null`)
+    // ip/userAgent en camelCase
+    await pgQuery(`alter table "session" add column if not exists "ipAddress" text`)
+    await pgQuery(`alter table "session" add column if not exists "userAgent" text`)
+    await pgQuery(`update "session" set "ipAddress" = ip_address where "ipAddress" is null and ip_address is not null`)
+    await pgQuery(`update "session" set "userAgent" = user_agent where "userAgent" is null and user_agent is not null`)
 
     // account table (email/password & providers)
     await pgQuery(`
@@ -72,8 +84,24 @@ export async function POST() {
     await pgQuery(`create index if not exists account_user_id_idx on "account"(user_id)`)
     await pgQuery(`alter table "account" add column if not exists "userId" uuid references "user"(id) on delete cascade`)
     await pgQuery(`create index if not exists "account_userId_idx" on "account"("userId")`)
+    // Uniques attendus
+    await pgQuery(`do $$ begin
+      if not exists (
+        select 1 from pg_indexes where schemaname = 'public' and indexname = 'account_provider_account_unique'
+      ) then
+        execute 'create unique index account_provider_account_unique on "account"(provider_id, account_id)';
+      end if;
+      if not exists (
+        select 1 from pg_indexes where schemaname = 'public' and indexname = 'account_providerAccount_unique_cc'
+      ) then
+        execute 'create unique index account_providerAccount_unique_cc on "account"(\"providerId\", \"accountId\")';
+      end if;
+    end $$;`)
     // Backfill camelCase from snake_case
     await pgQuery(`update "account" set "userId" = user_id where "userId" is null and user_id is not null`)
+    // Autoriser null sur user_id / "userId" (Better Auth n'utilise qu'une des deux)
+    await pgQuery(`alter table if exists "account" alter column user_id drop not null`)
+    await pgQuery(`alter table if exists "account" alter column "userId" drop not null`)
     // Assouplir contraintes héritées (account_id/provider_id peuvent être NULL pour 'credential')
     await pgQuery(`alter table if exists "account" alter column account_id drop not null`)
     await pgQuery(`alter table if exists "account" alter column provider_id drop not null`)
@@ -90,6 +118,13 @@ export async function POST() {
       )
     `)
     await pgQuery(`create index if not exists verification_identifier_idx on "verification"(identifier)`)
+    await pgQuery(`do $$ begin
+      if not exists (
+        select 1 from pg_indexes where schemaname = 'public' and indexname = 'verification_token_unique'
+      ) then
+        execute 'create unique index verification_token_unique on verification(token)';
+      end if;
+    end $$;`)
     // Ancienne colonne "value" -> "token" si nécessaire (évite conflit avec alias Prisma)
     try {
       await pgQuery(`

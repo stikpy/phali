@@ -244,28 +244,28 @@ export default function PhotoGallery({ photos, onUpload, limit, showUpload = tru
         )}
 
         {showUpload && authenticated && !uploadBlocked && (
-          <div
-            onDragEnter={handleDrag}
-            onDragLeave={handleDrag}
-            onDragOver={handleDrag}
-            onDrop={handleDrop}
-            onClick={() => fileInputRef.current?.click()}
-            className={`skylog-widget border border-dashed border-white/20 p-10 text-center cursor-pointer mb-6 transition-all y2k-neon-border ${
-              dragActive ? "bg-secondary/40" : "bg-card"
-            }`}
-          >
-            <input
-              ref={fileInputRef}
-              type="file"
-              multiple
-              accept="image/*"
-              onChange={handleFileChange}
-              className="hidden"
-            />
-            <p className="text-5xl mb-3 animate-wiggle">📸</p>
-            <p className="text-lg font-black">DRAG & DROP VOS PHOTOS</p>
-            <p className="text-sm font-mono">ou cliquez ici</p>
-          </div>
+        <div
+          onDragEnter={handleDrag}
+          onDragLeave={handleDrag}
+          onDragOver={handleDrag}
+          onDrop={handleDrop}
+          onClick={() => fileInputRef.current?.click()}
+          className={`skylog-widget border border-dashed border-white/20 p-10 text-center cursor-pointer mb-6 transition-all y2k-neon-border ${
+            dragActive ? "bg-secondary/40" : "bg-card"
+          }`}
+        >
+          <input
+            ref={fileInputRef}
+            type="file"
+            multiple
+            accept="image/*"
+            onChange={handleFileChange}
+            className="hidden"
+          />
+          <p className="text-5xl mb-3 animate-wiggle">📸</p>
+          <p className="text-lg font-black">DRAG & DROP VOS PHOTOS</p>
+          <p className="text-sm font-mono">ou cliquez ici</p>
+        </div>
         )}
 
         {/* Photos Grid (Bento) */}
@@ -312,7 +312,7 @@ export default function PhotoGallery({ photos, onUpload, limit, showUpload = tru
                 <div
                   key={`${photo}-${index}`}
                   className={`relative group overflow-hidden rounded-xl border border-white/10 ${tileSpan} transition-transform hover:scale-[1.01] cursor-pointer shadow-[0_4px_24px_rgba(0,0,0,0.35)]`}
-                  onClick={() => setSelectedPhoto(photo)}
+                onClick={() => setSelectedPhoto(photo)}
                 >
                   {/* Vignette MinIO: object-cover simple */}
                   <img src={photo || "/placeholder.svg"} alt={`Photo ${index + 1}`} className="block w-full h-full object-cover" loading="lazy" />
@@ -338,7 +338,7 @@ export default function PhotoGallery({ photos, onUpload, limit, showUpload = tru
                         Télécharger
                       </a>
                     </div>
-                  </div>
+                </div>
                 </div>
               )
             })}
@@ -374,7 +374,7 @@ export default function PhotoGallery({ photos, onUpload, limit, showUpload = tru
                   href={selectedPhoto}
                   download
                   className="absolute top-3 left-3 skylog-button bg-accent text-foreground text-xs"
-                >
+              >
                   Télécharger
                 </a>
               )}

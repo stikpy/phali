@@ -44,7 +44,10 @@ export async function POST(req: Request) {
     // Upsert
     await pgQuery(
       `
-      insert into "account" (id, account_id, "accountId", provider_id, "providerId", user_id, "userId", password, created_at, "createdAt", updated_at, "updatedAt")
+      insert into "account" (
+        id, account_id, "accountId", provider_id, "providerId",
+        user_id, "userId", password, created_at, "createdAt", updated_at, "updatedAt"
+      )
       values ($1,$2,$2,$3,$3,$4,$4,$5, now(), now(), now(), now())
       on conflict (id) do update set
         account_id = excluded.account_id,
@@ -57,8 +60,8 @@ export async function POST(req: Request) {
         updated_at = now(),
         "updatedAt" = now()
     `,
-      // use deterministic id for email provider row
-      [`email:${userId}`, email, "email", userId, hash],
+      // id stable pour le provider "credential"
+      [`credential:${userId}`, email, "credential", userId, hash],
     )
 
     return NextResponse.json({ ok: true })
@@ -66,5 +69,6 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: false, error: e?.message || "unknown" }, { status: 500 })
   }
 }
+
 
 
