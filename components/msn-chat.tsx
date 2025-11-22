@@ -8,6 +8,7 @@ import { sendWizzBroadcast } from "@/lib/wizz-realtime"
 import { sendChatMessage } from "@/app/actions/chat"
 import { logEvent } from "@/app/actions/log"
 import { updatePresence } from "@/app/actions/presence"
+import { io, type Socket } from "socket.io-client"
 
 type ChatMsg = { id: string; from: string; text: string; at: number }
 
@@ -28,6 +29,7 @@ export default function MSNChat() {
   const presenceRef = useRef<any>(null)
   const [onlineCount, setOnlineCount] = useState<number>(1)
   const [authenticated, setAuthenticated] = useState<boolean>(false)
+  const socketRef = useRef<Socket | null>(null)
 
   useEffect(() => {
     if (!open) return
@@ -123,6 +125,25 @@ export default function MSNChat() {
       load()
       // Tant que le realtime n'est pas migré, petit polling pour nouveaux messages
       const poll = setInterval(load, 5000)
+      // Socket.IO realtime (si configuré et authentifié)
+      const serverUrl =
+        (typeof window !== "undefined" && (window as any).NEXT_PUBLIC_REALTIME_SERVER_URL) ||
+        process.env.NEXT_PUBLIC_REALTIME_SERVER_URL ||
+        process.env.REALTIME_SERVER_URL
+      if (serverUrl && authenticated) {
+        try {
+          const s = io(serverUrl as string, { transports: ["websocket", "polling"] })
+          socketRef.current = s
+          s.on("connect", () => {
+            s.emit("chat:get")
+          })
+          s.on("chat:message", (m: { id: string; from: string; text: string; at: number }) => {
+            if (!m?.id || seenIdsRef.current.has(m.id)) return
+            seenIdsRef.current.add(m.id)
+            setMessages((prev) => [...prev, m])
+          })
+        } catch {}
+      }
       // Presence realtime pour compteur "en ligne"
       const pres = supabase.channel("chat-presence", { config: { presence: { key: sessionIdRef.current } } })
       pres
@@ -142,6 +163,9 @@ export default function MSNChat() {
       presenceRef.current = pres
       return () => {
         clearInterval(poll)
+        try {
+          socketRef.current?.close()
+        } catch {}
         if (presenceRef.current) supabase.removeChannel(presenceRef.current)
         subscribedRef.current = false
       }
@@ -169,6 +193,10 @@ export default function MSNChat() {
       console.error("[chat] send failed:", e?.message || e)
       await logEvent("error", "chat send failed", { error: e?.message || String(e) })
     })
+    // broadcast realtime (Socket.IO)
+    try {
+      socketRef.current?.emit("chat:message", { id, from: author, text, at: Date.now() })
+    } catch {}
   }
 
   const wizz = () => {
