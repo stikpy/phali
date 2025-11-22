@@ -1,6 +1,6 @@
 "use server"
 
-import { createServiceClient } from "@/utils/supabase/service"
+import { pgQuery } from "@/utils/db"
 
 type ChatPayload = {
   id: string
@@ -9,18 +9,15 @@ type ChatPayload = {
 }
 
 export async function sendChatMessage(payload: ChatPayload) {
-  const supabase = createServiceClient()
-
-  const { error } = await supabase.from("chat_messages").insert({
-    id: payload.id,
-    author: payload.author,
-    message: payload.message,
-  })
-
-  if (error) {
-    return { success: false, error: error.message }
+  try {
+    await pgQuery("insert into public.chat_messages (id, author, message) values ($1, $2, $3)", [
+      payload.id,
+      payload.author,
+      payload.message,
+    ])
+    return { success: true }
+  } catch (e: any) {
+    return { success: false, error: e?.message || "unknown" }
   }
-
-  return { success: true }
 }
 

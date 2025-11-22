@@ -1,6 +1,6 @@
 "use server"
 
-import { createServiceClient } from "@/utils/supabase/service"
+import { pgQuery } from "@/utils/db"
 
 type RsvpPayload = {
   name: string
@@ -14,34 +14,34 @@ type RsvpPayload = {
 }
 
 export async function submitRsvp(payload: RsvpPayload) {
-  const supabase = createServiceClient()
-
-  const { error } = await supabase
-    .from("rsvp_responses")
-    .upsert(
-      {
-        name: payload.name,
-        email: payload.email,
-        guests: payload.guests,
-        message: payload.message,
-        phone: payload.phone,
-        status: payload.status,
-        avatar_url: payload.avatarUrl,
-        reminder_opt_in: !!payload.reminderOptIn,
-      },
-      { onConflict: "email" },
+  try {
+    await pgQuery(
+      `insert into public.rsvp_responses
+       (name, email, guests, message, phone, status, avatar_url, reminder_opt_in)
+       values ($1,$2,$3,$4,$5,$6,$7,$8)
+       on conflict (email) do update set
+         name = excluded.name,
+         guests = excluded.guests,
+         message = excluded.message,
+         phone = excluded.phone,
+         status = excluded.status,
+         avatar_url = excluded.avatar_url,
+         reminder_opt_in = excluded.reminder_opt_in`,
+      [
+        payload.name,
+        payload.email,
+        payload.guests,
+        payload.message,
+        payload.phone,
+        payload.status,
+        payload.avatarUrl,
+        !!payload.reminderOptIn,
+      ],
     )
-
-  if (error) {
-    console.error("[submitRsvp] upsert error:", error.message)
-    return { success: false, error: error.message }
+    return { success: true }
+  } catch (e: any) {
+    console.error("[submitRsvp] error:", e?.message)
+    return { success: false, error: e?.message || "unknown" }
   }
-
-  console.log("[submitRsvp] stored", {
-    email: payload.email,
-    status: payload.status,
-    avatarUrl: payload.avatarUrl,
-  })
-  return { success: true }
 }
 

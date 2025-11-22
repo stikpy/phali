@@ -1,7 +1,7 @@
 "use server"
 
 import { NextResponse } from "next/server"
-import { createServiceClient } from "@/utils/supabase/service"
+import { pgQuery } from "@/utils/db"
 
 export async function POST(req: Request) {
   try {
@@ -9,11 +9,7 @@ export async function POST(req: Request) {
     if (!id || typeof id !== "string") {
       return NextResponse.json({ success: false, error: "Missing id" }, { status: 400 })
     }
-    const supabase = createServiceClient()
-    const { error } = await supabase.from("chat_messages").delete().eq("id", id)
-    if (error) {
-      return NextResponse.json({ success: false, error: error.message }, { status: 200 })
-    }
+    await pgQuery("delete from public.chat_messages where id = $1", [id])
     return NextResponse.json({ success: true })
   } catch (e: any) {
     return NextResponse.json({ success: false, error: e?.message || "unknown" }, { status: 200 })

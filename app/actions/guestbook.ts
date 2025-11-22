@@ -1,6 +1,6 @@
 "use server"
 
-import { createServiceClient } from "@/utils/supabase/service"
+import { pgQuery } from "@/utils/db"
 
 type GuestbookPayload = {
   name: string
@@ -8,17 +8,14 @@ type GuestbookPayload = {
 }
 
 export async function submitGuestbookEntry(payload: GuestbookPayload) {
-  const supabase = createServiceClient()
-
-  const { error } = await supabase.from("guestbook_entries").insert({
-    name: payload.name,
-    message: payload.message,
-  })
-
-  if (error) {
-    return { success: false, error: error.message }
+  try {
+    await pgQuery("insert into public.guestbook_entries (name, message) values ($1, $2)", [
+      payload.name,
+      payload.message,
+    ])
+    return { success: true }
+  } catch (e: any) {
+    return { success: false, error: e?.message || "unknown" }
   }
-
-  return { success: true }
 }
 
