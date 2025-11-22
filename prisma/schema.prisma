@@ -1,9 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client"
   output   = "../lib/generated/prisma"
@@ -11,4 +5,76 @@ generator client {
 
 datasource db {
   provider = "postgresql"
+}
+
+model app_logs {
+  id         String   @id
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+  level      String
+  message    String
+  meta       Json?
+
+  @@index([created_at])
+}
+
+model chat_messages {
+  id         String   @id
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+  author     String
+  message    String
+
+  @@index([created_at])
+}
+
+model guestbook_entries {
+  id         String   @id
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+  name       String
+  message    String
+
+  @@index([created_at])
+}
+
+model metrics_views {
+  id  String   @id
+  ip  String   @db.Inet
+  day DateTime @db.Date
+}
+
+model profiles {
+  id         String    @id
+  updated_at DateTime? @db.Timestamptz(6)
+  username   String?
+  full_name  String?
+  avatar_url String?
+  website    String?
+}
+
+model rsvp_responses {
+  id              String    @id @default(dbgenerated("gen_random_uuid()"))
+  created_at      DateTime? @default(now()) @db.Timestamptz(6)
+  name            String
+  email           String    @unique
+  guests          Int
+  dietary         String?
+  message         String?
+  status          String    @default("unsure")
+  avatar_url      String?
+  reminder_opt_in Boolean   @default(false)
+  phone           String?
+
+  @@index([created_at])
+}
+
+model site_metrics {
+  id         String   @id
+  views      BigInt   @default(0)
+  updated_at DateTime @default(now()) @db.Timestamptz(6)
+}
+
+model wizz_events {
+  id         String    @id
+  created_at DateTime? @default(now()) @db.Timestamptz(6)
+  ip         String?
+  user_agent String?
 }
