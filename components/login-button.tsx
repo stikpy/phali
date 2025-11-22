@@ -9,8 +9,10 @@ export default function LoginButton() {
   const [open, setOpen] = useState(false)
   const [authenticated, setAuthenticated] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [mode, setMode] = useState<"login" | "signup">("login")
   const [identifier, setIdentifier] = useState("")
   const [password, setPassword] = useState("")
+  const [fullName, setFullName] = useState("")
   const [message, setMessage] = useState<string | null>(null)
   const router = useRouter()
 
@@ -62,6 +64,51 @@ export default function LoginButton() {
     }
   }
 
+  const doSignup = async () => {
+    setLoading(true)
+    setMessage(null)
+    try {
+      if (!identifier || !identifier.includes("@")) {
+        setMessage("Email invalide.")
+        return
+      }
+      if (!password || password.length < 6) {
+        setMessage("Mot de passe trop court (≥ 6 caractères).")
+        return
+      }
+      const { error } = await authClient.signUp.email({
+        email: identifier,
+        password,
+        name: fullName || identifier.split("@")[0],
+      })
+      if (error) {
+        setMessage(error.message || "Création de compte échouée")
+      } else {
+        setOpen(false)
+        setAuthenticated(true)
+        router.refresh()
+      }
+    } catch (e: any) {
+      setMessage(e?.message || "Erreur inconnue")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const doGoogle = async () => {
+    setLoading(true)
+    setMessage(null)
+    try {
+      const { error } = await authClient.signIn.social({ provider: "google" })
+      if (error) setMessage(error.message || "Connexion Google échouée")
+      // redirection gérée par le provider; rien d’autre à faire ici
+    } catch (e: any) {
+      setMessage(e?.message || "Erreur inconnue")
+    } finally {
+      setLoading(false)
+    }
+  }
+
   const logout = async () => {
     await authClient.signOut()
     setAuthenticated(false)
@@ -85,9 +132,17 @@ export default function LoginButton() {
         <DialogContent className="max-w-sm">
           <DialogTitle>Connexion</DialogTitle>
           <div className="space-y-3">
+            {mode === "signup" && (
+              <input
+                className="w-full px-3 py-2 border border-white/20 bg-background/70 text-sm"
+                placeholder="Nom complet"
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
+              />
+            )}
             <input
               className="w-full px-3 py-2 border border-white/20 bg-background/70 text-sm"
-              placeholder="Email ou téléphone"
+              placeholder="Email"
               value={identifier}
               onChange={(e) => setIdentifier(e.target.value)}
             />
@@ -100,16 +155,37 @@ export default function LoginButton() {
             />
             {message && <div className="text-xs text-red-400 font-mono">{message}</div>}
             <div className="flex items-center gap-2">
-              <button className="skylog-button bg-primary px-4 py-2 disabled:opacity-60" onClick={doLogin} disabled={loading}>
-                Connexion
-              </button>
-              <button className="skylog-button bg-secondary px-4 py-2 disabled:opacity-60" onClick={sendMagic} disabled={loading || !identifier}>
-                Magic link
-              </button>
+              {mode === "login" ? (
+                <>
+                  <button className="skylog-button bg-primary px-4 py-2 disabled:opacity-60" onClick={doLogin} disabled={loading}>
+                    Connexion
+                  </button>
+                  <button className="skylog-button bg-secondary px-4 py-2 disabled:opacity-60" onClick={sendMagic} disabled={loading || !identifier}>
+                    Magic link
+                  </button>
+                  <button className="skylog-button bg-background/60 px-4 py-2 disabled:opacity-60" onClick={doGoogle} disabled={loading}>
+                    Continuer avec Google
+                  </button>
+                </>
+              ) : (
+                <button className="skylog-button bg-primary px-4 py-2 disabled:opacity-60" onClick={doSignup} disabled={loading}>
+                  Créer mon compte
+                </button>
+              )}
             </div>
-            <p className="text-[11px] font-mono text-foreground/60">
-              Pas de compte ? Remplis le formulaire RSVP pour créer ton accès automatiquement.
-            </p>
+            <div className="flex items-center justify-between text-[11px] font-mono text-foreground/60">
+              <button
+                type="button"
+                className="underline underline-offset-2 hover:text-foreground"
+                onClick={() => {
+                  setMode((m) => (m === "login" ? "signup" : "login"))
+                  setMessage(null)
+                }}
+              >
+                {mode === "login" ? "Créer un compte" : "J'ai déjà un compte"}
+              </button>
+              <span>Ou utilise le RSVP si tu es “Présent”.</span>
+            </div>
           </div>
         </DialogContent>
       </Dialog>
