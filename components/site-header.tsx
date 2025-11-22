@@ -4,6 +4,7 @@ import Link from "next/link"
 import { useState } from "react"
 import VisitClock from "@/components/visit-clock"
 import { triggerWizz } from "@/lib/wizz"
+import LoginButton from "@/components/login-button"
 
 const links = [
   { href: "/", label: "Accueil" },
@@ -40,6 +41,7 @@ export default function SiteHeader() {
             <button className="skylog-button text-xs px-4 py-2 hidden sm:inline-flex" onClick={triggerWizz}>
               Wizz Flash
             </button>
+            <LoginButton />
             <button
               className="md:hidden skylog-button px-3 py-2 text-xs"
               onClick={() => setOpen((prev) => !prev)}
