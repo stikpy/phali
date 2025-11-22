@@ -111,8 +111,8 @@ export default function LoginButton() {
         setMessage("Email invalide.")
         return
       }
-      if (!password || password.length < 6) {
-        setMessage("Mot de passe trop court (≥ 6 caractères).")
+      if (!password || password.length < 8) {
+        setMessage("Mot de passe trop court (≥ 8 caractères).")
         return
       }
       const { error } = await authClient.signUp.email({

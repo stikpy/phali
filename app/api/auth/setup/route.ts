@@ -97,6 +97,14 @@ export async function POST() {
       `)
     } catch {}
 
+    // site_metrics: ajoute colonne day si manquante (pour VisitClock)
+    try {
+      await pgQuery(`
+        alter table if exists public.site_metrics
+        add column if not exists day date
+      `)
+    } catch {}
+
     return NextResponse.json({ ok: true })
   } catch (e: any) {
     return NextResponse.json({ ok: false, error: e?.message || "unknown" }, { status: 500 })
