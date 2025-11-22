@@ -1,7 +1,7 @@
 import { betterAuth } from "better-auth"
 import { magicLink, phoneNumber } from "better-auth/plugins"
 import { prismaAdapter } from "better-auth/adapters/prisma"
-import { PrismaClient } from "./generated/prisma"
+import { PrismaClient } from "./generated/prisma/client"
 
 const prisma = new PrismaClient()
 
